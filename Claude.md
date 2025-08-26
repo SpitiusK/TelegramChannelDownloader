@@ -14,11 +14,17 @@
 
 **Key Features**:
 - Multi-step Telegram authentication (phone number, verification code, 2FA)
-- Real-time connection status and logging
-- Input validation with visual feedback
-- Progress tracking for download operations
-- Session persistence for authenticated users
-- Configurable output directory selection
+- Real-time connection status and logging with color-coded display
+- Input validation with real-time visual feedback and border coloring
+- Progress tracking for download operations with detailed metrics
+- Session persistence for authenticated users with automatic restoration
+- Configurable output directory selection with browser dialog
+- Channel URL validation and information preview
+- Multiple export formats (Markdown, JSON with extensible architecture)
+- Tabbed interface with Authentication, Download, Settings, and Log views
+- Comprehensive error handling with user-friendly messages
+- Auto-scrolling log display with level-based color coding
+- Real-time property change notifications throughout UI
 
 ## Development Environment
 
@@ -36,10 +42,24 @@
 5. Run the application (`dotnet run` or F5 in IDE)
 
 ### Dependencies
+**Core Layer**:
+```xml
+<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
+```
+
+**Desktop Layer**:
 ```xml
 <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
 <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+```
+
+**TelegramApi Layer**:
+```xml
 <PackageReference Include="WTelegramClient" Version="3.7.1" />
+<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+<PackageReference Include="System.Text.Json" Version="8.0.0" />
 ```
 
 ## Architecture Overview
@@ -448,4 +468,18 @@ private void AddLogMessage(string message, LogLevel level = LogLevel.Info)
 3. **Offline Mode**: Cache channel information for offline browsing
 4. **Multi-threading**: Parallel downloads with proper synchronization
 
-This documentation provides a comprehensive guide for AI assistants to understand and work effectively with the Telegram Channel Downloader project. The codebase is well-structured, follows modern C# and WPF practices, and provides a solid foundation for further development.
+## Layer-Specific Documentation
+
+Each layer has its own dedicated Claude.md file for detailed technical specifications:
+
+- **[Core Layer Documentation](src/TelegramChannelDownloader.Core/CLAUDE.md)**: Comprehensive guide to the business logic layer, including services, models, validation, export functionality, and integration patterns.
+
+- **[Desktop Layer Documentation](src/TelegramChannelDownloader.Desktop/CLAUDE.md)**: Complete WPF UI implementation guide covering MVVM architecture, ViewModels, Views, data binding, commands, converters, and user experience design.
+
+- **[TelegramApi Layer Documentation](src/TelegramChannelDownloader.TelegramApi/CLAUDE.md)**: Detailed data access layer documentation including Telegram API integration, authentication flow, session management, channel operations, and message handling.
+
+These layer-specific documentation files provide deep technical details for working with each architectural layer independently while maintaining understanding of the overall system design.
+
+## Summary
+
+This documentation provides a comprehensive guide for AI assistants to understand and work effectively with the Telegram Channel Downloader project. The codebase is well-structured, follows modern C# and WPF practices, implements clean 3-layer architecture principles, and provides a solid foundation for further development.
