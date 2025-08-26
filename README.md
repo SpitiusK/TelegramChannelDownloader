@@ -150,32 +150,95 @@ Message content here...
 ### Technology Stack
 - **Framework**: .NET 8.0 Windows
 - **UI Framework**: WPF (Windows Presentation Foundation)
-- **Architecture Pattern**: MVVM (Model-View-ViewModel)
+- **Architecture Pattern**: Clean 3-Layer Architecture with MVVM
 - **Dependency Injection**: Microsoft.Extensions.DependencyInjection
 - **Telegram API**: WTelegramClient 3.7.1
 
+### Clean Architecture Overview
+
+The application follows a clean 3-layer architecture that promotes maintainability, testability, and extensibility:
+
+```
+TelegramChannelDownloader.Desktop (UI Layer)
+    ↓ uses services from
+TelegramChannelDownloader.Core (Business Logic Layer)
+    ↓ uses services from  
+TelegramChannelDownloader.TelegramApi (Data Access/API Layer)
+```
+
 ### Project Structure
 ```
-TelegramChannelDownloader/
-├── App.xaml/cs              # Application entry point and DI setup
-├── MainWindow.xaml/cs       # Main application window
-├── Behaviors/               # Custom WPF behaviors
-├── Commands/                # Async command implementations
-├── Converters/              # Data binding value converters
-├── Models/                  # Data models and DTOs
-├── Services/                # Business logic and API integration
-├── Utils/                   # Utility classes and helpers
-├── ViewModels/              # MVVM view models
-└── Views/                   # Additional WPF views
+TelegramChannelDownloader.sln
+├── src/
+│   ├── TelegramChannelDownloader.Desktop/     # UI Layer (WPF)
+│   │   ├── App.xaml/App.xaml.cs              # Application entry point and DI setup
+│   │   ├── MainWindow.xaml/xaml.cs           # Main tabbed interface
+│   │   ├── ViewModels/                       # MVVM ViewModels
+│   │   │   ├── MainViewModel.cs              # Main coordination ViewModel
+│   │   │   ├── AuthenticationViewModel.cs    # Authentication tab logic
+│   │   │   ├── DownloadViewModel.cs          # Download tab logic
+│   │   │   └── SettingsViewModel.cs          # Settings tab logic
+│   │   ├── Views/                           # User Controls for each tab
+│   │   │   ├── AuthenticationView.xaml      # Authentication UI
+│   │   │   ├── DownloadView.xaml            # Download configuration UI
+│   │   │   ├── LogView.xaml                 # Log display UI
+│   │   │   └── SettingsView.xaml            # Settings configuration UI
+│   │   ├── Services/                        # UI-specific services
+│   │   │   ├── IUIService.cs/UIService.cs   # UI interaction service
+│   │   │   └── IDialogService.cs/DialogService.cs # Dialog management
+│   │   └── Converters/                      # WPF value converters
+│   │
+│   ├── TelegramChannelDownloader.Core/       # Business Logic Layer
+│   │   ├── Services/                        # Core business services
+│   │   │   ├── IDownloadService.cs/DownloadService.cs
+│   │   │   ├── IExportService.cs/ExportService.cs
+│   │   │   └── IValidationService.cs/ValidationService.cs
+│   │   ├── Models/                         # Business data models
+│   │   │   ├── DownloadRequest.cs
+│   │   │   ├── DownloadResult.cs
+│   │   │   ├── ExportOptions.cs
+│   │   │   └── ValidationResult.cs
+│   │   └── Exceptions/                     # Custom exceptions
+│   │       ├── DownloadException.cs
+│   │       ├── ExportException.cs
+│   │       └── ValidationException.cs
+│   │
+│   └── TelegramChannelDownloader.TelegramApi/  # API Integration Layer
+│       ├── ITelegramApiClient.cs/TelegramApiClient.cs # Main API client
+│       ├── Authentication/                  # Auth handling
+│       │   ├── IAuthenticationHandler.cs/AuthenticationHandler.cs
+│       │   └── Models/AuthenticationModels.cs
+│       ├── Channels/                       # Channel operations
+│       │   ├── IChannelService.cs/ChannelService.cs
+│       │   └── Models/ChannelInfo.cs
+│       ├── Messages/                       # Message operations
+│       │   ├── IMessageService.cs/MessageService.cs
+│       │   └── Models/MessageData.cs
+│       ├── Session/                        # Session management
+│       │   └── ISessionManager.cs/SessionManager.cs
+│       └── Extensions/                     # Service registration
+│           └── ServiceCollectionExtensions.cs
 ```
 
-### Key Components
+### Key Components by Layer
 
-- **TelegramService**: Core service handling all Telegram API operations
-- **MainViewModel**: Primary view model managing UI state and business logic
-- **ValidationHelper**: Centralized input validation with real-time feedback
-- **AuthenticationState**: State management for multi-step authentication
-- **AsyncRelayCommand**: Async-aware command implementation for responsive UI
+#### Desktop Layer (UI)
+- **MainViewModel**: Central coordination ViewModel for the application
+- **AuthenticationViewModel**: Dedicated ViewModel for authentication flow
+- **DownloadViewModel**: Handles download configuration and progress
+- **UIService**: Abstracts UI interactions for testability
+- **AsyncRelayCommand**: Async-aware command implementation
+
+#### Core Layer (Business Logic)
+- **DownloadService**: Orchestrates the complete download workflow
+- **ExportService**: Handles message export to various formats
+- **ValidationService**: Centralized business rule validation
+
+#### TelegramApi Layer (Data Access)
+- **TelegramApiClient**: Main facade for all Telegram API operations
+- **AuthenticationHandler**: Manages multi-step authentication flow
+- **ChannelService**: Handles channel operations and validation
+- **MessageService**: Manages message downloading and processing
 
 ## Dependencies
 
