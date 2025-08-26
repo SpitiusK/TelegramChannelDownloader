@@ -1,0 +1,258 @@
+<UserControl x:Class="TelegramChannelDownloader.Desktop.Views.AuthenticationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:converters="clr-namespace:TelegramChannelDownloader.Desktop.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="400">
+    
+    <UserControl.Resources>
+        <converters:ValidationToBorderBrushConverter x:Key="ValidationToBorderBrushConverter" />
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:ConnectedToColorConverter x:Key="ConnectedToColorConverter" />
+    </UserControl.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="15">
+            <TextBlock Text="Telegram Authentication" 
+                       FontSize="20" 
+                       FontWeight="Bold" 
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+        </Border>
+        
+        <!-- Authentication Form -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                
+                <!-- Connection Status -->
+                <Border Background="#ECF0F1" 
+                        BorderBrush="#BDC3C7" 
+                        BorderThickness="1" 
+                        CornerRadius="5" 
+                        Padding="10">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Ellipse Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding IsConnected, Converter={StaticResource ConnectedToColorConverter}}" />
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ConnectionStatus}" 
+                                   FontWeight="Medium" 
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <!-- API Credentials Section -->
+                <GroupBox Header="API Credentials" FontWeight="Bold" Margin="0,15,0,0">
+                    <StackPanel Margin="10">
+                        
+                        <!-- API ID -->
+                        <StackPanel>
+                            <TextBlock Text="API ID:" FontWeight="Medium" />
+                            <TextBox Text="{Binding ApiId, UpdateSourceTrigger=PropertyChanged}" 
+                                     BorderBrush="{Binding IsApiIdValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
+                                     BorderThickness="2"
+                                     Padding="8,5"
+                                     IsEnabled="{Binding IsConnecting, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                            <TextBlock Text="{Binding ApiIdValidationMessage}" 
+                                       Foreground="Red" 
+                                       FontSize="11"
+                                       Visibility="{Binding ApiIdValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        </StackPanel>
+                        
+                        <!-- API Hash -->
+                        <StackPanel Margin="0,10,0,0">
+                            <TextBlock Text="API Hash:" FontWeight="Medium" />
+                            <TextBox Text="{Binding ApiHash, UpdateSourceTrigger=PropertyChanged}" 
+                                     BorderBrush="{Binding IsApiHashValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
+                                     BorderThickness="2"
+                                     Padding="8,5"
+                                     IsEnabled="{Binding IsConnecting, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                            <TextBlock Text="{Binding ApiHashValidationMessage}" 
+                                       Foreground="Red" 
+                                       FontSize="11"
+                                       Visibility="{Binding ApiHashValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        </StackPanel>
+                        
+                        <!-- Connect Button -->
+                        <Button Command="{Binding ConnectCommand}" 
+                                Content="Connect to Telegram"
+                                Background="#3498DB"
+                                Foreground="White"
+                                Padding="15,10"
+                                FontWeight="Bold"
+                                Margin="0,10,0,0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDC3C7" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Phone Number Section -->
+                <GroupBox Header="Phone Number" Margin="0,15,0,0" 
+                          FontWeight="Bold"
+                          Visibility="{Binding IsPhoneNumberRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Enter your phone number (with country code):" 
+                                   TextWrapping="Wrap" 
+                                   FontStyle="Italic" />
+                        <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" 
+                                 BorderBrush="{Binding IsPhoneNumberValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
+                                 BorderThickness="2"
+                                 Padding="8,5"
+                                 IsEnabled="{Binding IsConnecting, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding PhoneNumberValidationMessage}" 
+                                   Foreground="Red" 
+                                   FontSize="11"
+                                   Visibility="{Binding PhoneNumberValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Button Command="{Binding SubmitPhoneCommand}" 
+                                Content="Submit Phone Number"
+                                Background="#27AE60"
+                                Foreground="White"
+                                Padding="15,8"
+                                FontWeight="Bold">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDC3C7" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Verification Code Section -->
+                <GroupBox Header="Verification Code" Margin="0,15,0,0" 
+                          FontWeight="Bold"
+                          Visibility="{Binding IsVerificationCodeRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Enter the verification code sent to your phone:" 
+                                   TextWrapping="Wrap" 
+                                   FontStyle="Italic" />
+                        <TextBox Text="{Binding VerificationCode, UpdateSourceTrigger=PropertyChanged}" 
+                                 BorderBrush="{Binding IsVerificationCodeValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
+                                 BorderThickness="2"
+                                 Padding="8,5"
+                                 MaxLength="6"
+                                 IsEnabled="{Binding IsConnecting, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding VerificationCodeValidationMessage}" 
+                                   Foreground="Red" 
+                                   FontSize="11"
+                                   Visibility="{Binding VerificationCodeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Button Command="{Binding SubmitCodeCommand}" 
+                                Content="Submit Verification Code"
+                                Background="#E67E22"
+                                Foreground="White"
+                                Padding="15,8"
+                                FontWeight="Bold">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDC3C7" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Two-Factor Authentication Section -->
+                <GroupBox Header="Two-Factor Authentication" Margin="0,15,0,0" 
+                          FontWeight="Bold"
+                          Visibility="{Binding IsTwoFactorRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Enter your two-factor authentication password:" 
+                                   TextWrapping="Wrap" 
+                                   FontStyle="Italic" />
+                        <PasswordBox x:Name="TwoFactorPasswordBox"
+                                     BorderBrush="{Binding IsTwoFactorCodeValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
+                                     BorderThickness="2"
+                                     Padding="8,5"
+                                     IsEnabled="{Binding IsConnecting, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding TwoFactorCodeValidationMessage}" 
+                                   Foreground="Red" 
+                                   FontSize="11"
+                                   Visibility="{Binding TwoFactorCodeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Button Command="{Binding SubmitTwoFactorCommand}" 
+                                Content="Submit Two-Factor Code"
+                                Background="#8E44AD"
+                                Foreground="White"
+                                Padding="15,8"
+                                FontWeight="Bold">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDC3C7" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Connected User Info -->
+                <GroupBox Header="Connected User" Margin="0,15,0,0" 
+                          FontWeight="Bold"
+                          Visibility="{Binding IsConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="{Binding CurrentUser.DisplayName}" 
+                                   FontWeight="Bold"
+                                   FontSize="14" />
+                        <TextBlock Text="{Binding CurrentUser.Username, StringFormat='@{0}'}" 
+                                   Foreground="#7F8C8D"
+                                   Margin="0,5,0,0"
+                                   Visibility="{Binding CurrentUser.Username, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Button Command="{Binding DisconnectCommand}" 
+                                Content="Disconnect"
+                                Background="#E74C3C"
+                                Foreground="White"
+                                Padding="10,5"
+                                FontWeight="Bold"
+                                Margin="0,10,0,0" />
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Loading Indicator -->
+                <Border Background="#F39C12" Margin="0,15,0,0" 
+                        CornerRadius="5" 
+                        Padding="10"
+                        Visibility="{Binding IsConnecting, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="⏳" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="Processing..." 
+                                   FontWeight="Bold" 
+                                   Foreground="White" 
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+            </StackPanel>
+        </ScrollViewer>
+        
+    </Grid>
+</UserControl>
