@@ -1,0 +1,194 @@
+<UserControl x:Class="TelegramChannelDownloader.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:converters="clr-namespace:TelegramChannelDownloader.Desktop.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="450">
+    
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#9B59B6" Padding="15">
+            <TextBlock Text="Application Settings" 
+                       FontSize="20" 
+                       FontWeight="Bold" 
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+        </Border>
+        
+        <!-- Settings Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                
+                <!-- Default Settings Section -->
+                <GroupBox Header="Default Settings" FontWeight="Bold">
+                    <StackPanel Margin="10">
+                        
+                        <!-- Default Output Directory -->
+                        <StackPanel>
+                            <TextBlock Text="Default Output Directory:" FontWeight="Medium" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding DefaultOutputDirectory, UpdateSourceTrigger=PropertyChanged}" 
+                                         Padding="8,5" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding BrowseDefaultDirectoryCommand}"
+                                        Content="Browse..."
+                                        Padding="15,5"
+                                        Margin="5,0,0,0" />
+                            </Grid>
+                        </StackPanel>
+                        
+                        <!-- Default Export Format -->
+                        <StackPanel>
+                            <TextBlock Text="Default Export Format:" FontWeight="Medium" />
+                            <ComboBox ItemsSource="{Binding AvailableExportFormats}"
+                                      SelectedItem="{Binding DefaultExportFormat}"
+                                      Padding="8,5" />
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- User Interface Settings Section -->
+                <GroupBox Header="User Interface" Margin="0,15,0,0" FontWeight="Bold">
+                    <StackPanel Margin="10">
+                        
+                        <!-- Show Log Details -->
+                        <CheckBox Content="Show detailed log information" 
+                                  IsChecked="{Binding ShowLogDetails}"
+                                  FontWeight="Medium" />
+                        
+                        <!-- Auto Open Output Directory -->
+                        <CheckBox Content="Automatically open output directory after download" 
+                                  IsChecked="{Binding AutoOpenOutputDirectory}"
+                                  FontWeight="Medium" />
+                        
+                        <!-- Auto Open Exported File -->
+                        <CheckBox Content="Automatically open exported file after completion" 
+                                  IsChecked="{Binding AutoOpenExportedFile}"
+                                  FontWeight="Medium" />
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Logging Settings Section -->
+                <GroupBox Header="Logging" Margin="0,15,0,0" FontWeight="Bold">
+                    <StackPanel Margin="10">
+                        
+                        <!-- Max Log Entries -->
+                        <StackPanel>
+                            <TextBlock Text="Maximum Log Entries:" FontWeight="Medium" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Value="{Binding MaxLogEntries}" 
+                                        Minimum="10" 
+                                        Maximum="1000" 
+                                        Width="200" 
+                                        TickFrequency="50"
+                                        IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding MaxLogEntries}" 
+                                           FontWeight="Bold" 
+                                           VerticalAlignment="Center"
+                                           MinWidth="40" 
+                                           Margin="10,0,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Notification Settings Section -->
+                <GroupBox Header="Notifications" Margin="0,15,0,0" FontWeight="Bold">
+                    <StackPanel Margin="10">
+                        
+                        <!-- Enable Notifications -->
+                        <CheckBox Content="Enable completion notifications" 
+                                  IsChecked="{Binding EnableNotifications}"
+                                  FontWeight="Medium" />
+                        
+                        <!-- Notification Dismiss Time -->
+                        <StackPanel Visibility="{Binding EnableNotifications, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Auto-dismiss notifications after (seconds):" FontWeight="Medium" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Value="{Binding NotificationDismissSeconds}" 
+                                        Minimum="5" 
+                                        Maximum="60" 
+                                        Width="200" 
+                                        TickFrequency="5"
+                                        IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding NotificationDismissSeconds}" 
+                                           FontWeight="Bold" 
+                                           VerticalAlignment="Center"
+                                           MinWidth="40" 
+                                           Margin="10,0,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Information Section -->
+                <GroupBox Header="Information" Margin="0,15,0,0" FontWeight="Bold">
+                    <StackPanel Margin="10">
+                        
+                        <TextBlock TextWrapping="Wrap" FontStyle="Italic" Foreground="#7F8C8D">
+                            Settings are automatically saved when changed. You can reset to default values using the button below.
+                        </TextBlock>
+                        
+                        <Separator />
+                        
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#7F8C8D">
+                            <Run Text="Application Version: 1.0.0" />
+                            <LineBreak />
+                            <Run Text="Build Date: 2025-08-25" />
+                            <LineBreak />
+                            <Run Text="Framework: .NET 8.0" />
+                        </TextBlock>
+                        
+                    </StackPanel>
+                </GroupBox>
+                
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Action Buttons -->
+        <Border Grid.Row="2" Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="0,1,0,0" Padding="20,15">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                
+                <Button Command="{Binding SaveSettingsCommand}"
+                        Content="Save Settings"
+                        Background="#28A745"
+                        Foreground="White"
+                        Padding="20,8"
+                        FontWeight="Bold" />
+                
+                <Button Command="{Binding ResetToDefaultsCommand}"
+                        Content="Reset to Defaults"
+                        Background="#6C757D"
+                        Foreground="White"
+                        Padding="20,8"
+                        FontWeight="Bold" 
+                        Margin="15,0,0,0" />
+                
+            </StackPanel>
+        </Border>
+        
+    </Grid>
+</UserControl>

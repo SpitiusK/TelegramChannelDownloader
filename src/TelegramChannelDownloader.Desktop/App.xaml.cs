@@ -1,0 +1,62 @@
+using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using TelegramChannelDownloader.Core.Extensions;
+using TelegramChannelDownloader.Desktop.Services;
+using TelegramChannelDownloader.Desktop.ViewModels;
+using TelegramChannelDownloader.TelegramApi;
+using TelegramChannelDownloader.TelegramApi.Extensions;
+
+namespace TelegramChannelDownloader.Desktop;
+
+/// <summary>
+/// Interaction logic for App.xaml
+/// </summary>
+public partial class App : Application
+{
+    private IHost? _host;
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        // Create and configure the host
+        _host = Host.CreateDefaultBuilder(e.Args)
+            .ConfigureServices((context, services) =>
+            {
+                // Register TelegramApi layer
+                services.AddTelegramApi();
+                
+                // Register Core layer  
+                services.AddTelegramChannelDownloaderCore();
+                
+                // Register Desktop layer services
+                services.AddScoped<IUIService, UIService>();
+                services.AddScoped<IDialogService, DialogService>();
+                
+                // Register ViewModels
+                services.AddScoped<AuthenticationViewModel>();
+                services.AddScoped<DownloadViewModel>();
+                services.AddScoped<SettingsViewModel>();
+                services.AddScoped<MainViewModel>();
+                
+                // Register Views
+                services.AddTransient<MainWindow>();
+            })
+            .Build();
+
+        // Start the host
+        _host.Start();
+
+        // Show the main window
+        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        mainWindow.Show();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _host?.Dispose();
+        base.OnExit(e);
+    }
+}
+

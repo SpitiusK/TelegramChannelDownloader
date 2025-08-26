@@ -10,7 +10,7 @@
 - **Telegram API**: WTelegramClient 3.7.1 (C# wrapper for Telegram's MTProto API)
 - **Dependency Injection**: Microsoft.Extensions.DependencyInjection 8.0.0
 - **Hosting**: Microsoft.Extensions.Hosting 8.0.0
-- **Architecture Pattern**: MVVM (Model-View-ViewModel)
+- **Architecture Pattern**: Clean 3-Layer Architecture with MVVM
 
 **Key Features**:
 - Multi-step Telegram authentication (phone number, verification code, 2FA)
@@ -42,11 +42,81 @@
 <PackageReference Include="WTelegramClient" Version="3.7.1" />
 ```
 
-## Project Structure
+## Architecture Overview
+
+The application has been transformed from a monolithic structure into a clean 3-layer architecture that promotes maintainability, testability, and extensibility:
+
+### 3-Layer Architecture
 
 ```
-TelegramChannelDownloader/
-├── App.xaml/App.xaml.cs           # Application entry point and DI container setup
+TelegramChannelDownloader.Desktop (UI Layer)
+    ↓ uses services from
+TelegramChannelDownloader.Core (Business Logic Layer)
+    ↓ uses services from  
+TelegramChannelDownloader.TelegramApi (Data Access/API Layer)
+```
+
+**Layer Responsibilities:**
+- **Desktop Layer**: WPF UI with MVVM pattern, user interaction handling
+- **Core Layer**: Business logic, validation, download orchestration, export services
+- **TelegramApi Layer**: Pure Telegram API integration, authentication, message handling
+
+### Project Structure
+
+```
+TelegramChannelDownloader.sln
+├── src/
+│   ├── TelegramChannelDownloader.Desktop/     # UI Layer (WPF)
+│   │   ├── App.xaml/App.xaml.cs              # Application entry point and DI setup
+│   │   ├── MainWindow.xaml/xaml.cs           # Main tabbed interface
+│   │   ├── ViewModels/                       # MVVM ViewModels
+│   │   │   ├── MainViewModel.cs              # Main coordination ViewModel
+│   │   │   ├── AuthenticationViewModel.cs    # Authentication tab logic
+│   │   │   ├── DownloadViewModel.cs          # Download tab logic
+│   │   │   └── SettingsViewModel.cs          # Settings tab logic
+│   │   ├── Views/                           # User Controls for each tab
+│   │   │   ├── AuthenticationView.xaml      # Authentication UI
+│   │   │   ├── DownloadView.xaml            # Download configuration UI
+│   │   │   ├── LogView.xaml                 # Log display UI
+│   │   │   └── SettingsView.xaml            # Settings configuration UI
+│   │   ├── Services/                        # UI-specific services
+│   │   │   ├── IUIService.cs/UIService.cs   # UI interaction service
+│   │   │   └── IDialogService.cs/DialogService.cs # Dialog management
+│   │   └── Converters/                      # WPF value converters
+│   │
+│   ├── TelegramChannelDownloader.Core/       # Business Logic Layer
+│   │   ├── Services/                        # Core business services
+│   │   │   ├── IDownloadService.cs/DownloadService.cs
+│   │   │   ├── IExportService.cs/ExportService.cs
+│   │   │   └── IValidationService.cs/ValidationService.cs
+│   │   ├── Models/                         # Business data models
+│   │   │   ├── DownloadRequest.cs
+│   │   │   ├── DownloadResult.cs
+│   │   │   ├── ExportOptions.cs
+│   │   │   └── ValidationResult.cs
+│   │   └── Exceptions/                     # Custom exceptions
+│   │       ├── DownloadException.cs
+│   │       ├── ExportException.cs
+│   │       └── ValidationException.cs
+│   │
+│   └── TelegramChannelDownloader.TelegramApi/  # API Integration Layer
+│       ├── ITelegramApiClient.cs/TelegramApiClient.cs # Main API client
+│       ├── Authentication/                  # Auth handling
+│       │   ├── IAuthenticationHandler.cs/AuthenticationHandler.cs
+│       │   └── Models/AuthenticationModels.cs
+│       ├── Channels/                       # Channel operations
+│       │   ├── IChannelService.cs/ChannelService.cs
+│       │   └── Models/ChannelInfo.cs
+│       ├── Messages/                       # Message operations
+│       │   ├── IMessageService.cs/MessageService.cs
+│       │   └── Models/MessageData.cs
+│       ├── Session/                        # Session management
+│       │   └── ISessionManager.cs/SessionManager.cs
+│       └── Extensions/                     # Service registration
+│           └── ServiceCollectionExtensions.cs
+
+└── Original Monolithic Structure/          # Preserved for reference
+    └── TelegramChannelDownloader/
 ├── MainWindow.xaml/xaml.cs        # Main application window UI and code-behind
 ├── Behaviors/                     # Custom WPF behaviors
 │   └── AutoScrollBehavior.cs      # Auto-scroll behavior for log display
@@ -78,19 +148,35 @@ TelegramChannelDownloader/
 
 ## Architecture Patterns
 
-### MVVM (Model-View-ViewModel)
-The application follows MVVM pattern strictly:
-- **Models**: Data structures (`TelegramCredentials`, `LogEntry`, etc.)
-- **Views**: XAML files and code-behind (minimal logic)
-- **ViewModels**: Business logic and data binding (`MainViewModel`)
+### Clean 3-Layer Architecture
+The application follows a clean architecture with strict separation of concerns:
+
+**Layer Dependencies (following Dependency Inversion Principle):**
+- Desktop Layer → Core Layer (through interfaces)
+- Core Layer → TelegramApi Layer (through interfaces)
+- No reverse dependencies allowed
+
+**Benefits Achieved:**
+- **Maintainability**: Each layer has focused responsibilities
+- **Testability**: Layers can be tested in isolation with mocking
+- **Extensibility**: Easy to add new features or swap implementations
+- **Separation of Concerns**: UI, business logic, and data access are clearly separated
+
+### MVVM in Desktop Layer
+The UI layer follows MVVM pattern with enhanced organization:
+- **Models**: Data transfer objects and display models
+- **Views**: XAML UserControls organized by feature area
+- **ViewModels**: Coordinating ViewModels that delegate to Core services
 
 ### Dependency Injection
-Uses Microsoft.Extensions.DependencyInjection for IoC:
+Comprehensive DI setup across all layers:
 ```csharp
-// App.xaml.cs
-services.AddTransient<MainViewModel>();
-services.AddSingleton<ITelegramService, TelegramService>();
-services.AddTransient<MainWindow>();
+// App.xaml.cs - Service Registration
+services.AddTelegramApi();              // TelegramApi layer services
+services.AddTelegramChannelDownloaderCore(); // Core layer services
+services.AddScoped<IUIService, UIService>(); // Desktop layer services
+services.AddScoped<AuthenticationViewModel>(); // ViewModels
+services.AddTransient<MainWindow>();          // Views
 ```
 
 ### Command Pattern
@@ -106,29 +192,57 @@ Authentication state is managed through:
 - `AuthenticationStatus` class for detailed status with user info
 - Event-driven updates via `AuthenticationStatusChanged` event
 
-## Key Components
+## Key Components by Layer
 
-### TelegramService (`Services/TelegramService.cs`)
-- **Purpose**: Core service for Telegram API operations using WTelegramClient
+### TelegramApi Layer Components
+
+#### TelegramApiClient (`TelegramApiClient.cs`)
+- **Purpose**: Main facade for all Telegram API operations
+- **Architecture**: Coordinates specialized service handlers
+- **Key Services**:
+  - `AuthenticationHandler`: Manages authentication flow
+  - `ChannelService`: Handles channel operations
+  - `MessageService`: Manages message downloading and export
+- **Session Management**: Integrates with `SessionManager` for persistence
+
+#### AuthenticationHandler (`Authentication/AuthenticationHandler.cs`)
+- **Purpose**: Specialized service for Telegram authentication
 - **Key Methods**:
-  - `InitializeAsync()`: Sets up API connection with credentials
-  - `AuthenticateWithPhoneAsync()`: Starts phone number authentication
-  - `VerifyCodeAsync()`: Completes SMS/app code verification
-  - `VerifyTwoFactorAuthAsync()`: Handles 2FA password authentication
-  - `GetChannelInfoAsync()`: Retrieves channel information
-  - `DisconnectAsync()`: Cleanly disconnects and logs out
-- **Session Management**: Automatic session persistence via WTelegramClient
-- **Error Handling**: Comprehensive exception handling with user-friendly messages
+  - `InitializeAsync()`: Sets up API connection
+  - `AuthenticatePhoneAsync()`: Phone number authentication
+  - `VerifyCodeAsync()`: SMS/app code verification
+  - `VerifyTwoFactorAsync()`: 2FA password handling
+- **State Management**: Tracks authentication state with events
 
-### MainViewModel (`ViewModels/MainViewModel.cs`)
-- **Purpose**: Primary view model containing all UI business logic
+### Core Layer Components
+
+#### DownloadService (`Services/DownloadService.cs`)
+- **Purpose**: Orchestrates the complete download workflow
 - **Key Responsibilities**:
-  - Input validation for all user fields (API credentials, phone, codes)
-  - Authentication flow orchestration
-  - Download progress tracking and logging
-  - Command implementations for UI actions
-- **Data Binding**: Extensive use of `ObservableObject` base for property notifications
-- **Validation**: Real-time validation with visual feedback using `ValidationHelper`
+  - Channel validation and access verification
+  - Download request processing and progress tracking
+  - Integration between TelegramApi and export services
+  - Error handling and recovery
+
+#### ExportService (`Services/ExportService.cs`)
+- **Purpose**: Handles message export to various formats
+- **Supported Formats**: Markdown, JSON (extensible for more formats)
+- **Features**: Rich formatting, media references, metadata inclusion
+
+### Desktop Layer Components
+
+#### MainViewModel (`ViewModels/MainViewModel.cs`)
+- **Purpose**: Central coordination ViewModel for the application
+- **Architecture**: Composes specialized ViewModels for each feature area
+- **Key Responsibilities**:
+  - Tab management and navigation
+  - Cross-feature communication
+  - Global application state management
+
+#### AuthenticationViewModel (`ViewModels/AuthenticationViewModel.cs`)
+- **Purpose**: Dedicated ViewModel for authentication flow
+- **Features**: Step-by-step authentication, real-time validation, status display
+- **Integration**: Delegates to Core layer services for business logic
 
 ### ValidationHelper (`Utils/ValidationHelper.cs`)
 - **Purpose**: Centralized input validation logic
