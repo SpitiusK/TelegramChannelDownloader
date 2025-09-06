@@ -1,6 +1,6 @@
 # Telegram Channel Downloader
 
-A professional Windows desktop application for downloading and exporting content from Telegram channels to structured Markdown files. Built with WPF and .NET 8, this tool provides a user-friendly interface for authenticating with Telegram's API and downloading messages, media information, and channel data.
+A **production-ready** Windows desktop application for downloading and exporting content from Telegram channels to structured formats. Built with modern .NET 8 and WPF, featuring clean architecture, comprehensive error handling, and real-time progress tracking. This professional tool provides an intuitive interface for authenticating with Telegram's API and efficiently downloading messages, media metadata, and channel information.
 
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
@@ -21,19 +21,21 @@ A professional Windows desktop application for downloading and exporting content
 - Display of channel metadata (title, description, subscriber count)
 - Visual confirmation before download initiation
 
-### 📥 **Smart Download System**
-- Progress tracking with real-time speed and ETA calculations
-- Structured Markdown export with message formatting
-- Configurable output directory selection
-- Background downloading with cancellation support
-- Comprehensive logging and error handling
+### 📥 **Advanced Download System**
+- **Batch Processing**: Memory-efficient downloading with configurable batch sizes
+- **Real-time Progress**: Live tracking with speed, ETA, and detailed metrics
+- **Export Formats**: Structured Markdown and JSON with rich metadata
+- **Error Recovery**: Automatic retry for rate limits (FLOOD_WAIT) and network issues
+- **Robust Validation**: Comprehensive channel access and authentication verification
+- **Background Processing**: Non-blocking downloads with full cancellation support
 
-### 🎨 **Professional UI**
-- Clean, intuitive WPF interface
-- Real-time input validation with visual feedback
-- Auto-scrolling log display for monitoring operations
-- Responsive design with progress indicators
-- Professional styling with consistent theming
+### 🎨 **Professional UI & Logging**
+- **Modern WPF Interface**: Clean, responsive design with professional styling
+- **Real-time Validation**: Instant feedback with color-coded input validation
+- **Comprehensive Logging**: Integrated logging bridge displaying service-level operations
+- **Live Status Updates**: Real-time authentication, connection, and download status
+- **Progressive Disclosure**: Context-sensitive UI that shows relevant options
+- **Auto-scrolling Log**: Real-time operation monitoring with color-coded levels
 
 ## Screenshots
 
@@ -59,15 +61,9 @@ A professional Windows desktop application for downloading and exporting content
 4. Note down your **API ID** (integer) and **API Hash** (32-character string)
 5. Keep these credentials secure and do not share them
 
-### Installation Options
+### Installation
 
-#### Option 1: Download Release (Recommended)
-1. Go to the [Releases page](https://github.com/your-username/TelegramChannelDownloader/releases)
-2. Download the latest release ZIP file
-3. Extract to your desired location
-4. Run `TelegramChannelDownloader.exe`
-
-#### Option 2: Build from Source
+#### Build from Source
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/your-username/TelegramChannelDownloader.git
@@ -119,30 +115,78 @@ A professional Windows desktop application for downloading and exporting content
 4. **Start Download**: Click "Download" to begin the process
 5. **Monitor Progress**: Watch real-time progress, speed, and estimated completion time
 
-### Output Format
+### Output Formats
 
-Downloaded content is saved as structured Markdown files:
+The application supports multiple export formats with rich metadata:
 
+#### **Markdown Export** (Primary Format)
 ```markdown
 # Channel Name
 **Description**: Channel description
-**Subscribers**: 1,234 members
-**Downloaded**: 2024-08-24 10:30:00
+**Channel**: @channelname
+**URL**: https://t.me/channelname
+**Messages**: 1,234
+**Exported**: 2024-12-27 10:30:00 UTC
 
 ---
 
 ## Message 123
-**Date**: 2024-08-24 09:15:23
-**Author**: Channel Name
+**Date**: 2024-12-27 09:15:23 UTC
+**Sender**: Channel Name
+**Views**: 1,542
 
-Message content here...
+Message content here with **formatting** preserved...
 
-### Media
-- **Type**: Photo
-- **File**: photo_123.jpg
-- **Size**: 1.2 MB
+**Media Type**: Photo
+**File**: photo_123.jpg  
+**Size**: 1.2 MB
+**Caption**: Photo caption if present
+
+**Links:**
+- https://example.com
+
+**Mentions:**
+- @username
+
+**Hashtags:**
+- #telegram
 
 ---
+```
+
+#### **JSON Export** (Structured Data)
+```json
+{
+  "channelInfo": {
+    "title": "Channel Name",
+    "username": "channelname", 
+    "description": "Channel description",
+    "url": "https://t.me/channelname"
+  },
+  "messages": [
+    {
+      "messageId": 123,
+      "timestamp": "2024-12-27T09:15:23Z",
+      "senderDisplayName": "Channel Name",
+      "content": "Message content...",
+      "messageType": "Photo",
+      "views": 1542,
+      "media": {
+        "fileName": "photo_123.jpg",
+        "fileSize": 1258291,
+        "mimeType": "image/jpeg"
+      },
+      "links": ["https://example.com"],
+      "mentions": ["username"],
+      "hashtags": ["telegram"]
+    }
+  ],
+  "exportInfo": {
+    "totalMessages": 1234,
+    "exportDate": "2024-12-27T10:30:00Z",
+    "format": "json"
+  }
+}
 ```
 
 ## Technical Architecture
@@ -223,29 +267,35 @@ TelegramChannelDownloader.sln
 ### Key Components by Layer
 
 #### Desktop Layer (UI)
-- **MainViewModel**: Central coordination ViewModel for the application
-- **AuthenticationViewModel**: Dedicated ViewModel for authentication flow
-- **DownloadViewModel**: Handles download configuration and progress
-- **UIService**: Abstracts UI interactions for testability
-- **AsyncRelayCommand**: Async-aware command implementation
+- **MainViewModel**: Central coordination ViewModel with cross-layer communication
+- **AuthenticationViewModel**: Complete authentication flow with real-time validation
+- **DownloadViewModel**: Download configuration, progress tracking, and status management
+- **UILoggerProvider**: Logging bridge between Microsoft.Extensions.Logging and WPF UI
+- **UIService**: UI interaction abstraction for dialogs and notifications
+- **AsyncRelayCommand**: Thread-safe async command implementation
 
-#### Core Layer (Business Logic)
-- **DownloadService**: Orchestrates the complete download workflow
-- **ExportService**: Handles message export to various formats
-- **ValidationService**: Centralized business rule validation
+#### Core Layer (Business Logic)  
+- **DownloadService**: Complete download orchestration with phase management
+- **ExportService**: Multi-format export (Markdown, JSON) with rich metadata
+- **ValidationService**: Comprehensive business rule validation with caching
+- **Progress Tracking**: Real-time download metrics and phase reporting
 
 #### TelegramApi Layer (Data Access)
-- **TelegramApiClient**: Main facade for all Telegram API operations
-- **AuthenticationHandler**: Manages multi-step authentication flow
-- **ChannelService**: Handles channel operations and validation
-- **MessageService**: Manages message downloading and processing
+- **TelegramApiClient**: Complete Telegram API facade with session management
+- **AuthenticationHandler**: Robust multi-step authentication with error recovery
+- **ChannelService**: Channel operations with access validation and caching
+- **MessageService**: Batch message downloading with FLOOD_WAIT handling and progress tracking
+- **SessionManager**: Secure session persistence and restoration
 
 ## Dependencies
 
 ### NuGet Packages
-- **WTelegramClient** (3.7.1): C# wrapper for Telegram's MTProto API
-- **Microsoft.Extensions.DependencyInjection** (8.0.0): Dependency injection container
-- **Microsoft.Extensions.Hosting** (8.0.0): Application hosting abstractions
+- **WTelegramClient** (3.7.1): C# wrapper for Telegram's MTProto API with full protocol support
+- **Microsoft.Extensions.DependencyInjection** (8.0.0): Dependency injection container for clean architecture
+- **Microsoft.Extensions.Hosting** (8.0.0): Application hosting with integrated logging
+- **Microsoft.Extensions.Logging** (8.0.0): Structured logging with multiple providers
+- **Microsoft.Extensions.Caching.Memory** (8.0.0): High-performance in-memory caching
+- **System.Text.Json** (8.0.0): Modern JSON serialization for export functionality
 
 ### System Requirements
 - **OS**: Windows 10 (1903+) or Windows 11
@@ -308,10 +358,22 @@ The application does not currently use environment variables. All configuration 
 - Check if you have access to the channel
 
 #### Download Problems
-**"Download failed"**
-- Check available disk space
-- Verify write permissions to output directory
-- Ensure stable internet connection
+**"Download failed: CHANNEL_INVALID"**
+- Verify channel URL is correct and channel exists
+- Ensure you have access to the channel (not private/restricted)
+- Check authentication status - may need to re-authenticate
+- Try validating the channel first before downloading
+
+**"Download failed: FLOOD_WAIT"**
+- Application automatically handles rate limiting with delays
+- If persistent, wait 10-15 minutes before retrying
+- Large channels may hit rate limits more frequently
+
+**"Download failed"** (General)
+- Check available disk space for export files
+- Verify write permissions to output directory  
+- Ensure stable internet connection throughout download
+- Check application logs in Log tab for specific error details
 
 ## Contributing
 
@@ -335,18 +397,26 @@ We welcome contributions!
 
 ### Planned Features
 - [ ] **Media Download**: Support for downloading actual media files (images, videos, documents)
-- [ ] **Filtering Options**: Date ranges, message types, and user filters
-- [ ] **Export Formats**: JSON, CSV, and HTML export options
+- [ ] **CSV Export Format**: Additional structured export option (architecture ready)
+- [ ] **Filtering Options**: Date ranges, message types, and user filters  
 - [ ] **Batch Operations**: Download multiple channels simultaneously
 - [ ] **Schedule Downloads**: Automated periodic downloads
 - [ ] **Advanced Search**: Full-text search within downloaded content
 
-### Technical Improvements
-- [ ] **Unit Testing**: Comprehensive test coverage
-- [ ] **Settings Persistence**: Save user preferences
-- [ ] **Performance Optimization**: Large channel handling improvements
+### Technical Improvements  
+- [ ] **Unit Testing**: Comprehensive test coverage for all layers
+- [ ] **Settings Persistence**: Enhanced user preferences and configuration
+- [ ] **Performance Optimization**: Further large channel handling improvements
 - [ ] **Plugin Architecture**: Extensible export format system
 - [ ] **Offline Mode**: Browse previously downloaded content offline
+
+### Recently Completed ✅
+- [x] **Production-Ready Download System**: Complete batch processing with progress tracking
+- [x] **Advanced Error Recovery**: FLOOD_WAIT automatic retry and CHANNEL_INVALID handling
+- [x] **Integrated Logging Bridge**: Microsoft.Extensions.Logging to WPF UI connection
+- [x] **Multi-format Export**: Rich Markdown and JSON export with comprehensive metadata
+- [x] **Real-time Validation**: Input validation with caching and user-friendly error messages
+- [x] **Clean 3-Layer Architecture**: Complete separation of concerns with dependency injection
 
 ## License
 

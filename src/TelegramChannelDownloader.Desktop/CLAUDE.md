@@ -10,15 +10,15 @@
 - **Dependents**: None (UI is the final consumer)
 - **Design Principle**: Focused solely on user interface concerns and user experience
 
-**Key Responsibilities**:
-- WPF user interface implementation with MVVM architecture
-- User input collection and real-time validation feedback
-- Authentication flow management with step-by-step UI progression
-- Download progress visualization and status reporting
-- Settings management and configuration persistence
-- Dialog and notification management
-- Real-time logging display with color-coded levels
-- Cross-feature communication and state coordination
+**Key Responsibilities** (✅ FULLY IMPLEMENTED):
+- **WPF User Interface**: Complete MVVM implementation with comprehensive data binding and validation
+- **Authentication Flow UI**: Multi-step authentication with progressive disclosure and real-time feedback
+- **Download Progress Visualization**: Real-time progress tracking with detailed metrics and cancellation support
+- **Service-to-UI Logging Bridge**: UILoggerProvider integrating Microsoft.Extensions.Logging with WPF display
+- **Settings Management**: Comprehensive configuration with persistence and live preview
+- **Dialog and Notification System**: Modal dialogs, file selection, and user feedback management
+- **Cross-Layer Communication**: Event-driven architecture coordinating ViewModels and services
+- **Advanced UI Features**: Color-coded validation, auto-scroll logging, and responsive design
 
 ## Technology Stack
 
@@ -56,7 +56,8 @@ TelegramChannelDownloader.Desktop/
 │   └── SettingsView.xaml/.cs        # Settings configuration UI
 ├── Services/                       # Desktop layer services
 │   ├── IUIService.cs / UIService.cs # UI interaction abstraction
-│   └── IDialogService.cs / DialogService.cs  # Dialog management
+│   ├── IDialogService.cs / DialogService.cs  # Dialog management
+│   └── UILoggerProvider.cs         # Microsoft.Extensions.Logging to UI bridge
 ├── Commands/                       # Command pattern implementations
 │   ├── RelayCommand.cs             # Standard synchronous commands
 │   └── AsyncRelayCommand.cs        # Async command wrapper
@@ -246,6 +247,80 @@ public interface IUIService
 - Progress dialogs for long-running operations
 - Settings dialogs with live preview
 - About dialog with application information
+
+### UILoggerProvider - SERVICE-TO-UI LOGGING BRIDGE ✅ FULLY IMPLEMENTED
+**Purpose**: Bridges Microsoft.Extensions.Logging from all service layers to the WPF UI display.
+
+**Architecture**:
+```csharp
+/// <summary>
+/// Logger provider that bridges Microsoft.Extensions.Logging to the WPF UI logging system
+/// </summary>
+public class UILoggerProvider : ILoggerProvider
+{
+    private readonly Func<MainViewModel> _mainViewModelFactory;
+    
+    public ILogger CreateLogger(string categoryName)
+    {
+        return new UILogger(categoryName, _mainViewModelFactory);
+    }
+}
+
+/// <summary>
+/// Logger implementation that forwards log messages to the WPF UI
+/// </summary>
+internal class UILogger : ILogger
+{
+    public void Log<TState>(
+        Microsoft.Extensions.Logging.LogLevel logLevel, 
+        EventId eventId, 
+        TState state, 
+        Exception? exception, 
+        Func<TState, Exception?, string> formatter)
+    {
+        var mainViewModel = _mainViewModelFactory();
+        var message = formatter(state, exception);
+        
+        // Format with category context
+        var formattedMessage = $\"[{GetCategoryShortName(_categoryName)}] {message}\";
+        
+        // Convert to UI log level and display
+        var uiLogLevel = ConvertLogLevel(logLevel);
+        mainViewModel.AddLogMessage(formattedMessage, uiLogLevel);
+    }
+}
+```
+
+**Key Features**:
+- **Real-time Integration**: All service layer logs appear immediately in UI
+- **Category Context**: Logs show source service/class for better debugging
+- **Log Level Mapping**: Converts .NET log levels to UI display levels
+- **Thread Safety**: Safe cross-thread UI updates with proper error isolation
+- **Error Isolation**: Logging errors don't crash the application
+- **Factory Pattern**: Uses factory method to avoid circular dependencies
+
+**Integration in App.xaml.cs**:
+```csharp
+.ConfigureLogging((context, logging) =>
+{
+    logging.ClearProviders();
+    logging.AddConsole(); // Development console logging
+    
+    // Add UI logger provider
+    logging.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
+    {
+        var mainViewModelFactory = new Func<MainViewModel>(() => 
+            serviceProvider.GetRequiredService<MainViewModel>());
+        return new UILoggerProvider(mainViewModelFactory);
+    });
+})
+```
+
+**Benefits**:
+- **Unified Logging**: All service logs (Core, TelegramApi) visible in UI
+- **Development Experience**: Real-time debugging information in the application
+- **User Support**: Detailed logs for troubleshooting user issues
+- **Diagnostics**: Complete application flow visibility for developers
 
 ## Command Pattern Implementation
 

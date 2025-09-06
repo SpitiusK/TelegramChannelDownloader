@@ -199,18 +199,67 @@ services.AddScoped<AuthenticationViewModel>(); // ViewModels
 services.AddTransient<MainWindow>();          // Views
 ```
 
-### Command Pattern
-Async operations use `AsyncRelayCommand` for proper async/await handling:
+### Command Pattern and Async Operations
+**Enhanced Command Implementation**:
 ```csharp
 public ICommand ConnectCommand { get; }
 ConnectCommand = new AsyncRelayCommand(ExecuteConnectAsync, CanExecuteConnect);
+
+// Full async operation with error handling and progress
+private async Task ExecuteConnectAsync()
+{
+    try
+    {
+        IsConnecting = true;
+        var result = await _telegramApi.InitializeAsync(config);
+        if (result.IsSuccess)
+        {
+            Status = result.AuthResult;
+            AddLogMessage("Connection established successfully", LogLevel.Info);
+        }
+        else
+        {
+            AddLogMessage($"Connection failed: {result.ErrorMessage}", LogLevel.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        AddLogMessage($"Connection error: {ex.Message}", LogLevel.Error);
+        throw;
+    }
+    finally
+    {
+        IsConnecting = false;
+    }
+}
 ```
 
-### State Management
-Authentication state is managed through:
-- `AuthenticationState` enum for current auth step
-- `AuthenticationStatus` class for detailed status with user info
+**Advanced Command Features**:
+- **Cancellation Support**: CancellationToken integration
+- **Progress Reporting**: IProgress<T> parameter support
+- **Error Handling**: Comprehensive exception management
+- **State Management**: UI state updates during operations
+- **Thread Safety**: Proper UI thread marshalling
+
+### State Management and Progress Tracking
+**Authentication State Management**:
+- `AuthenticationState` enum with complete state coverage
+- `AuthenticationStatus` class with detailed user information
 - Event-driven updates via `AuthenticationStatusChanged` event
+- Cross-layer state propagation through dependency injection
+
+**Download Progress Management**:
+- `DownloadStatus` class with comprehensive progress tracking
+- `DownloadPhase` enum covering all workflow stages
+- Real-time progress reporting with metrics (speed, ETA, message counts)
+- Cancellation token propagation through all layers
+- Event-driven status updates with `DownloadStatusChanged` events
+
+**Cross-Layer Communication**:
+- Service-to-UI logging bridge via UILoggerProvider
+- Progress reporting from TelegramApi to Core to Desktop layers
+- Event aggregation in MainViewModel for centralized coordination
+- Thread-safe property change notifications throughout UI
 
 ## Key Components by Layer
 
@@ -222,7 +271,7 @@ Authentication state is managed through:
 - **Key Services**:
   - `AuthenticationHandler`: Manages authentication flow
   - `ChannelService`: Handles channel operations
-  - `MessageService`: Manages message downloading and export
+  - `MessageService`: Advanced message downloading with batch processing, progress tracking, and comprehensive error handling
 - **Session Management**: Integrates with `SessionManager` for persistence
 
 #### AuthenticationHandler (`Authentication/AuthenticationHandler.cs`)
@@ -300,9 +349,27 @@ public class TelegramCredentials
 ## Development Workflow
 
 ### Git Workflow
-- **Main Branch**: `master` (current working branch)
-- **Commit Standards**: Use descriptive commit messages following conventional commits
-- **File Handling**: Several files are staged but not committed yet (.gitignore, .idea files, solution file)
+- **Main Branch**: `master` 
+- **Development Branch**: `development` (active development branch)
+- **Commit Standards**: Conventional commits with clear descriptions
+- **Recent Commits**: Major architecture refactoring and feature implementation completed
+
+### Current Development Status
+The project has undergone significant development with major milestones completed:
+
+**Recent Major Updates** (from git history):
+- `40dfa33`: Debug downloader - Final debugging and refinement
+- `42cb93e`: Update README.md - Documentation updates  
+- `b1f9da9`: Update Claude.md - Previous documentation update
+- `5beed50`: Refactor: restructure with Clean Architecture - Major architectural overhaul
+- `6d98584`: Initial release - Foundation implementation
+
+**Architecture Transformation**:
+The codebase has been completely restructured from a monolithic design to a clean 3-layer architecture with:
+- Separation of concerns across Desktop, Core, and TelegramApi layers
+- Comprehensive dependency injection setup
+- Service-oriented architecture with interfaces
+- Event-driven communication between layers
 
 ### Code Standards
 
@@ -383,28 +450,75 @@ Currently no environment variables are used. All configuration is provided throu
 
 ## Logging and Monitoring
 
-### Logging System
-- **Structured Logging**: `LogEntry` class with timestamp, level, and message
-- **Log Levels**: Info, Warning, Error (defined in `LogLevel` enum)
-- **UI Integration**: Real-time log display with color coding
-- **Log Rotation**: Maximum 100 entries in memory, 50 in text display
+### Comprehensive Logging System
+The application implements a sophisticated dual-layer logging system that bridges Microsoft.Extensions.Logging to the WPF UI:
 
-### Log Implementation
+**Logging Architecture**:
+- **Microsoft.Extensions.Logging**: Standard .NET logging framework for service layer
+- **UILoggerProvider**: Custom logger provider that bridges service logs to UI
+- **UI Log Display**: Real-time log visualization with color coding and filtering
+- **Log Rotation**: Configurable maximum entries with automatic cleanup
+
+**UILoggerProvider Implementation**:
 ```csharp
-private void AddLogMessage(string message, LogLevel level = LogLevel.Info)
+// Bridge between Microsoft.Extensions.Logging and WPF UI
+public class UILoggerProvider : ILoggerProvider
 {
-    var logEntry = new LogEntry(level, message);
-    _dispatcher.BeginInvoke(() =>
+    private readonly Func<MainViewModel> _mainViewModelFactory;
+    
+    public ILogger CreateLogger(string categoryName)
     {
-        _logEntries.Add(logEntry);
-        // Maintain maximum log entries limit
-        while (_logEntries.Count > MaxLogEntries)
-        {
-            _logEntries.RemoveAt(0);
-        }
-    });
+        return new UILogger(categoryName, _mainViewModelFactory);
+    }
+}
+
+// Forwards service logs to UI with context and formatting
+internal class UILogger : ILogger
+{
+    public void Log<TState>(
+        Microsoft.Extensions.Logging.LogLevel logLevel, 
+        EventId eventId, 
+        TState state, 
+        Exception? exception, 
+        Func<TState, Exception?, string> formatter)
+    {
+        var mainViewModel = _mainViewModelFactory();
+        var message = formatter(state, exception);
+        var formattedMessage = $"[{GetCategoryShortName(_categoryName)}] {message}";
+        var uiLogLevel = ConvertLogLevel(logLevel);
+        mainViewModel.AddLogMessage(formattedMessage, uiLogLevel);
+    }
 }
 ```
+
+**Service Integration**:
+```csharp
+// App.xaml.cs - Logging configuration
+.ConfigureLogging((context, logging) =>
+{
+    logging.ClearProviders();
+    logging.AddConsole(); // Development console logging
+    
+    // Add UI logger provider
+    logging.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
+    {
+        var mainViewModelFactory = new Func<MainViewModel>(() => 
+            serviceProvider.GetRequiredService<MainViewModel>());
+        return new UILoggerProvider(mainViewModelFactory);
+    });
+})
+```
+
+**Log Level Mapping**:
+- Critical/Error → UI Error (Red)
+- Warning → UI Warning (Orange)  
+- Information/Debug/Trace → UI Info (Black)
+
+**UI Integration Features**:
+- **Category Context**: Service logs include class name context
+- **Real-time Updates**: Logs appear immediately in UI
+- **Thread Safety**: Safe cross-thread UI updates
+- **Error Isolation**: Logging errors don't crash the application
 
 ## Security Considerations
 
@@ -441,26 +555,103 @@ private void AddLogMessage(string message, LogLevel level = LogLevel.Info)
 **Problem**: "Client not initialized"
 **Solution**: Always call `InitializeAsync()` before other operations
 
+### Channel Access Issues
+**Problem**: "CHANNEL_INVALID" errors
+**Solution**: Enhanced error handling now provides specific guidance:
+- Invalid access hash: Channel information not properly retrieved
+- Channel not accessible: Verify permissions and authentication
+- Private channel: Check if you have access to the channel
+
+**Problem**: "FLOOD_WAIT" rate limiting
+**Solution**: Automatic handling with configurable delays:
+- MessageService extracts wait time from error message
+- Automatic retry after specified wait period
+- Progress reporting continues after wait completion
+
+### Download Operation Issues
+**Problem**: Memory issues with large channels
+**Solution**: Batch processing implementation:
+- Configurable batch sizes (default 100 messages)
+- Memory-efficient streaming downloads
+- Progress reporting per batch
+
+**Problem**: Download cancellation
+**Solution**: Comprehensive cancellation support:
+- CancellationToken propagation through all layers
+- Graceful cleanup of partial downloads
+- Status tracking for cancelled operations
+
+### Export and File Issues
+**Problem**: Export format not supported
+**Solution**: Enhanced export service supports:
+- Markdown: Rich formatting with metadata
+- JSON: Complete structured data
+- CSV: Tabular format (planned)
+- Extensible format architecture
+
+**Problem**: File access permissions
+**Solution**: Improved validation:
+- Directory existence and write permission checks
+- Disk space validation before download
+- Automatic directory creation
+
 ### UI Responsiveness
 **Problem**: UI freezing during operations
 **Solution**: All long-running operations use `AsyncRelayCommand` to maintain UI thread responsiveness
 
+### Logging and Debugging Issues
+**Problem**: Missing service-level logging in UI
+**Solution**: UILoggerProvider bridges all service logs to UI:
+- Microsoft.Extensions.Logging integration
+- Categorized log messages with source context
+- Real-time log streaming to UI display
+
 ## Future Development
 
-### Planned Features (Based on Current Architecture)
-1. **Download Implementation**: Complete the download functionality (currently simulated)
-2. **Media Handling**: Support for downloading images, videos, documents
-3. **Filtering Options**: Date ranges, message types, user filters
-4. **Export Formats**: JSON, CSV, HTML export options
-5. **Batch Operations**: Multiple channel downloads
-6. **Settings Persistence**: Save user preferences and API credentials securely
+### Completed Recent Enhancements
+1. ✅ **Complete Download Implementation**: Full message downloading with progress tracking
+2. ✅ **Advanced Error Handling**: CHANNEL_INVALID and FLOOD_WAIT specific error handling
+3. ✅ **Logging Bridge**: UILoggerProvider for service-to-UI log integration
+4. ✅ **Export Functionality**: Markdown and JSON export with rich metadata
+5. ✅ **Batch Processing**: Memory-efficient message downloading in configurable batches
+6. ✅ **Progress Reporting**: Real-time download progress with detailed metrics
+7. ✅ **Session Management**: Persistent session handling with WTelegramClient integration
+8. ✅ **Cancellation Support**: Comprehensive cancellation token propagation
+9. ✅ **Validation Framework**: Multi-layer validation with detailed error reporting
+10. ✅ **Status Tracking**: Real-time download status monitoring
 
-### Technical Debt
-1. **Session Management**: Improve session data handling beyond placeholder implementation
-2. **Testing**: Add comprehensive unit and integration test coverage
-3. **Configuration**: Add proper settings management
-4. **Performance**: Implement progress cancellation and background processing
-5. **Error Handling**: More granular error categorization and recovery
+### Current Implementation Status
+**Fully Implemented**:
+- Complete 3-layer clean architecture
+- Full authentication workflow with all states
+- Message downloading with batch processing and progress reporting
+- Export to Markdown and JSON formats with rich metadata
+- Channel validation and information retrieval
+- Real-time logging with service-to-UI bridge
+- Comprehensive error handling and recovery
+- Progress tracking and cancellation support
+- Session persistence and restoration
+
+**In Active Development**:
+- Media file downloading (architecture ready)
+- CSV export format (service interface ready)
+- Advanced filtering options (validation framework ready)
+- Settings persistence (UI components implemented)
+
+### Next Phase Planned Features
+1. **Media Handling**: Download and organize images, videos, documents
+2. **Advanced Filtering**: Date ranges, message types, sender filters
+3. **Batch Channel Operations**: Multiple channel downloads with queue management
+4. **Export Format Extensions**: HTML, Plain Text, custom templates
+5. **Performance Optimizations**: Parallel downloads, caching strategies
+6. **UI Enhancements**: Dark mode, advanced progress visualization
+
+### Technical Debt and Improvements
+1. **Testing**: Add comprehensive unit and integration test coverage
+2. **Performance**: Optimize large channel handling and memory usage
+3. **Caching**: Implement channel metadata caching
+4. **Configuration**: Enhanced settings persistence and management
+5. **Accessibility**: Screen reader support and keyboard navigation
 
 ### Architecture Improvements
 1. **Repository Pattern**: Abstract data access for future database integration
