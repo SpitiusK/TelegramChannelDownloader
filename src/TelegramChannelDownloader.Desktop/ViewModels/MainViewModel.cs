@@ -5,6 +5,7 @@ using TelegramChannelDownloader.Core.Models;
 using TelegramChannelDownloader.Desktop.Commands;
 using TelegramChannelDownloader.Desktop.Services;
 using TelegramChannelDownloader.Desktop.Utils;
+using TelegramChannelDownloader.TelegramApi.Authentication.Models;
 
 namespace TelegramChannelDownloader.Desktop.ViewModels;
 
@@ -93,15 +94,39 @@ public class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsAuthenticated));
         OnPropertyChanged(nameof(CanDownload));
         
-        // Add log message
+        // Add appropriate log messages based on authentication state
         if (isAuthenticated)
         {
             AddLogMessage("Successfully authenticated with Telegram.", LogLevel.Info);
             AddLogMessage("You can now validate channels and start downloads.", LogLevel.Info);
         }
-        else
+        else if (sender is AuthenticationViewModel authVM)
         {
-            AddLogMessage("Disconnected from Telegram.", LogLevel.Warning);
+            var state = authVM.AuthenticationState;
+            switch (state)
+            {
+                case AuthenticationState.Connecting:
+                    AddLogMessage("Connecting to Telegram...", LogLevel.Info);
+                    break;
+                case AuthenticationState.WaitingForPhoneNumber:
+                    AddLogMessage("Connected to Telegram. Please enter your phone number.", LogLevel.Info);
+                    break;
+                case AuthenticationState.WaitingForVerificationCode:
+                    AddLogMessage("Phone number submitted. Please enter verification code.", LogLevel.Info);
+                    break;
+                case AuthenticationState.WaitingForTwoFactorAuth:
+                    AddLogMessage("Verification code accepted. Please enter 2FA password.", LogLevel.Info);
+                    break;
+                case AuthenticationState.Disconnected:
+                    AddLogMessage("Disconnected from Telegram.", LogLevel.Warning);
+                    break;
+                case AuthenticationState.AuthenticationFailed:
+                    AddLogMessage("Authentication failed. Please check credentials and try again.", LogLevel.Warning);
+                    break;
+                case AuthenticationState.ConnectionError:
+                    AddLogMessage("Connection error. Please check internet connection and try again.", LogLevel.Warning);
+                    break;
+            }
         }
     }
 

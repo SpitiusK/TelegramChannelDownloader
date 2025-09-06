@@ -37,7 +37,7 @@
                         
                         <!-- Default Output Directory -->
                         <StackPanel>
-                            <TextBlock Text="Default Output Directory:" FontWeight="Medium" />
+                            <TextBlock Text="Default Output Directory:" FontWeight="Medium" Foreground="#2C3E50" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -56,7 +56,7 @@
                         
                         <!-- Default Export Format -->
                         <StackPanel>
-                            <TextBlock Text="Default Export Format:" FontWeight="Medium" />
+                            <TextBlock Text="Default Export Format:" FontWeight="Medium" Foreground="#2C3E50" />
                             <ComboBox ItemsSource="{Binding AvailableExportFormats}"
                                       SelectedItem="{Binding DefaultExportFormat}"
                                       Padding="8,5" />
@@ -72,17 +72,20 @@
                         <!-- Show Log Details -->
                         <CheckBox Content="Show detailed log information" 
                                   IsChecked="{Binding ShowLogDetails}"
-                                  FontWeight="Medium" />
+                                  FontWeight="Medium"
+                                  Foreground="#2C3E50" />
                         
                         <!-- Auto Open Output Directory -->
                         <CheckBox Content="Automatically open output directory after download" 
                                   IsChecked="{Binding AutoOpenOutputDirectory}"
-                                  FontWeight="Medium" />
+                                  FontWeight="Medium"
+                                  Foreground="#2C3E50" />
                         
                         <!-- Auto Open Exported File -->
                         <CheckBox Content="Automatically open exported file after completion" 
                                   IsChecked="{Binding AutoOpenExportedFile}"
-                                  FontWeight="Medium" />
+                                  FontWeight="Medium"
+                                  Foreground="#2C3E50" />
                         
                     </StackPanel>
                 </GroupBox>
@@ -93,7 +96,7 @@
                         
                         <!-- Max Log Entries -->
                         <StackPanel>
-                            <TextBlock Text="Maximum Log Entries:" FontWeight="Medium" />
+                            <TextBlock Text="Maximum Log Entries:" FontWeight="Medium" Foreground="#2C3E50" />
                             <StackPanel Orientation="Horizontal">
                                 <Slider Value="{Binding MaxLogEntries}" 
                                         Minimum="10" 
@@ -105,6 +108,7 @@
                                 <TextBlock Text="{Binding MaxLogEntries}" 
                                            FontWeight="Bold" 
                                            VerticalAlignment="Center"
+                                           Foreground="#2C3E50"
                                            MinWidth="40" 
                                            Margin="10,0,0,0" />
                             </StackPanel>
@@ -120,11 +124,12 @@
                         <!-- Enable Notifications -->
                         <CheckBox Content="Enable completion notifications" 
                                   IsChecked="{Binding EnableNotifications}"
-                                  FontWeight="Medium" />
+                                  FontWeight="Medium"
+                                  Foreground="#2C3E50" />
                         
                         <!-- Notification Dismiss Time -->
                         <StackPanel Visibility="{Binding EnableNotifications, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Auto-dismiss notifications after (seconds):" FontWeight="Medium" />
+                            <TextBlock Text="Auto-dismiss notifications after (seconds):" FontWeight="Medium" Foreground="#2C3E50" />
                             <StackPanel Orientation="Horizontal">
                                 <Slider Value="{Binding NotificationDismissSeconds}" 
                                         Minimum="5" 
@@ -136,6 +141,7 @@
                                 <TextBlock Text="{Binding NotificationDismissSeconds}" 
                                            FontWeight="Bold" 
                                            VerticalAlignment="Center"
+                                           Foreground="#2C3E50"
                                            MinWidth="40" 
                                            Margin="10,0,0,0" />
                             </StackPanel>

@@ -43,7 +43,7 @@
                         
                         <!-- Channel URL -->
                         <StackPanel>
-                            <TextBlock Text="Channel URL or Username:" FontWeight="Medium" />
+                            <TextBlock Text="Channel URL or Username:" FontWeight="Medium" Foreground="#2C3E50" />
                             <TextBox Text="{Binding ChannelUrl, UpdateSourceTrigger=PropertyChanged}" 
                                      BorderBrush="{Binding IsChannelUrlValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                      BorderThickness="2"
@@ -76,6 +76,7 @@
                                                Visibility="{Binding HasValidChannel, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     <TextBlock Text="{Binding ChannelValidationMessage}" 
                                                FontWeight="Medium" 
+                                               Foreground="#2C3E50"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                                 
@@ -98,7 +99,7 @@
                         
                         <!-- Output Directory -->
                         <StackPanel>
-                            <TextBlock Text="Output Directory:" FontWeight="Medium" />
+                            <TextBlock Text="Output Directory:" FontWeight="Medium" Foreground="#2C3E50" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -125,7 +126,7 @@
                         
                         <!-- Export Format -->
                         <StackPanel>
-                            <TextBlock Text="Export Format:" FontWeight="Medium" />
+                            <TextBlock Text="Export Format:" FontWeight="Medium" Foreground="#2C3E50" />
                             <ComboBox ItemsSource="{Binding AvailableExportFormats}"
                                       SelectedItem="{Binding ExportFormat}"
                                       Padding="8,5"
@@ -208,7 +209,8 @@
                         <TextBlock Text="{Binding ProgressText}" 
                                    HorizontalAlignment="Center" 
                                    FontWeight="Bold" 
-                                   FontSize="14" />
+                                   FontSize="14"
+                                   Foreground="#2C3E50" />
                         
                         <!-- Progress Details Grid -->
                         <Grid>
@@ -225,26 +227,32 @@
                             <!-- Speed -->
                             <TextBlock Grid.Row="0" Grid.Column="0" 
                                        Text="Speed:" 
-                                       FontWeight="Medium" />
+                                       FontWeight="Medium"
+                                       Foreground="#2C3E50" />
                             <TextBlock Grid.Row="0" Grid.Column="1" 
                                        Text="{Binding DownloadSpeed, Converter={StaticResource DoubleToSpeedStringConverter}}" 
-                                       HorizontalAlignment="Right" />
+                                       HorizontalAlignment="Right"
+                                       Foreground="#2C3E50" />
                             
                             <!-- Time Remaining -->
                             <TextBlock Grid.Row="1" Grid.Column="0" 
                                        Text="Time Remaining:" 
-                                       FontWeight="Medium" />
+                                       FontWeight="Medium"
+                                       Foreground="#2C3E50" />
                             <TextBlock Grid.Row="1" Grid.Column="1" 
                                        Text="{Binding EstimatedTimeRemaining, Converter={StaticResource TimeSpanToStringConverter}}" 
-                                       HorizontalAlignment="Right" />
+                                       HorizontalAlignment="Right"
+                                       Foreground="#2C3E50" />
                             
                             <!-- Current Phase -->
                             <TextBlock Grid.Row="2" Grid.Column="0" 
                                        Text="Phase:" 
-                                       FontWeight="Medium" />
+                                       FontWeight="Medium"
+                                       Foreground="#2C3E50" />
                             <TextBlock Grid.Row="2" Grid.Column="1" 
                                        Text="{Binding DownloadPhase}" 
-                                       HorizontalAlignment="Right" />
+                                       HorizontalAlignment="Right"
+                                       Foreground="#2C3E50" />
                             
                         </Grid>
                         
@@ -259,6 +267,7 @@
                                 <TextBlock Text="Current Message:" 
                                            FontWeight="Bold" 
                                            FontSize="12" 
+                                           Foreground="#2C3E50"
                                            Margin="0,0,0,5" />
                                 <TextBlock Text="{Binding CurrentMessage.Text}" 
                                            TextTrimming="CharacterEllipsis"
@@ -296,6 +305,7 @@
                                    Text="{Binding CompletionMessage}" 
                                    FontWeight="Bold" 
                                    VerticalAlignment="Center"
+                                   Foreground="#155724"
                                    TextWrapping="Wrap" />
                         
                         <Button Grid.Column="2" 

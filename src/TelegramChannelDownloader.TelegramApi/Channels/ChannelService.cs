@@ -97,25 +97,35 @@ public class ChannelService : IChannelService, IDisposable
 
             return channelInfo;
         }
-        catch (WTelegram.WTException ex) when (
-            ex.Message.Contains("USERNAME_NOT_OCCUPIED") ||
-            ex.Message.Contains("USERNAME_INVALID") ||
-            ex.Message.Contains("CHANNEL_INVALID") ||
-            ex.Message.Contains("CHAT_INVALID"))
+        catch (WTelegram.WTException ex)
         {
-            _logger.LogWarning("Channel not found or invalid: {ChannelUrl} - {Error}", channelUrl, ex.Message);
-            return new ChannelInfo
+            var userMessage = ex.Message switch
             {
-                ErrorMessage = "Channel not found or not accessible",
-                IsAccessible = false
+                string msg when msg.Contains("CHANNEL_INVALID") => 
+                    "Channel not found or access denied. Verify the channel exists and you have permission to access it.",
+                string msg when msg.Contains("USERNAME_NOT_OCCUPIED") => 
+                    "This username is not registered or the channel does not exist.",
+                string msg when msg.Contains("USERNAME_INVALID") => 
+                    "The channel username format is invalid. Use format: @channelname or t.me/channelname",
+                string msg when msg.Contains("AUTH_KEY_INVALID") => 
+                    "Authentication session expired. Please re-authenticate and try again.",
+                string msg when msg.Contains("USER_DEACTIVATED") => 
+                    "Your Telegram account has been deactivated.",
+                string msg when msg.Contains("CHAT_INVALID") => 
+                    "Channel not found or not accessible",
+                string msg when msg.Contains("CHANNEL_PRIVATE") => 
+                    "Channel is private and cannot be accessed",
+                string msg when msg.Contains("FLOOD_WAIT") => 
+                    "Rate limit exceeded. Please wait a moment and try again.",
+                _ => $"Channel access failed: {ex.Message}"
             };
-        }
-        catch (WTelegram.WTException ex) when (ex.Message.Contains("CHANNEL_PRIVATE"))
-        {
-            _logger.LogWarning("Channel is private: {ChannelUrl}", channelUrl);
+
+            _logger.LogError(ex, "WTelegram channel resolution failed for {ChannelUrl}: {ErrorCode}", 
+                channelUrl, ex.Message);
+            
             return new ChannelInfo
             {
-                ErrorMessage = "Channel is private and cannot be accessed",
+                ErrorMessage = userMessage,
                 IsAccessible = false
             };
         }
@@ -199,7 +209,10 @@ public class ChannelService : IChannelService, IDisposable
             ex.Message.Contains("USERNAME_INVALID") ||
             ex.Message.Contains("CHANNEL_INVALID") ||
             ex.Message.Contains("CHAT_INVALID") ||
-            ex.Message.Contains("CHANNEL_PRIVATE"))
+            ex.Message.Contains("CHANNEL_PRIVATE") ||
+            ex.Message.Contains("AUTH_KEY_INVALID") ||
+            ex.Message.Contains("USER_DEACTIVATED") ||
+            ex.Message.Contains("FLOOD_WAIT"))
         {
             _logger.LogDebug("Channel not accessible: {Username} - {Error}", channelUsername, ex.Message);
             return false;
@@ -287,7 +300,10 @@ public class ChannelService : IChannelService, IDisposable
             ex.Message.Contains("USERNAME_NOT_OCCUPIED") ||
             ex.Message.Contains("USERNAME_INVALID") ||
             ex.Message.Contains("CHANNEL_INVALID") ||
-            ex.Message.Contains("CHAT_INVALID"))
+            ex.Message.Contains("CHAT_INVALID") ||
+            ex.Message.Contains("AUTH_KEY_INVALID") ||
+            ex.Message.Contains("USER_DEACTIVATED") ||
+            ex.Message.Contains("FLOOD_WAIT"))
         {
             _logger.LogWarning("Channel not found for message count: {Username} - {Error}", channelUsername, ex.Message);
             return 0;
@@ -302,7 +318,7 @@ public class ChannelService : IChannelService, IDisposable
     /// <summary>
     /// Converts a TL Chat object to our ChannelInfo model
     /// </summary>
-    private static ChannelInfo ConvertToChannelInfo(ChatBase chat, string username)
+    private ChannelInfo ConvertToChannelInfo(ChatBase chat, string username)
     {
         var channelInfo = new ChannelInfo
         {
@@ -315,6 +331,9 @@ public class ChannelService : IChannelService, IDisposable
         switch (chat)
         {
             case Channel channel:
+                // Set the access hash - this is critical for channel operations
+                channelInfo.AccessHash = channel.access_hash;
+                
                 channelInfo.Type = channel.flags.HasFlag(Channel.Flags.broadcast) 
                     ? (!string.IsNullOrWhiteSpace(channel.username) ? ChannelType.Channel : ChannelType.PrivateChannel)
                     : (!string.IsNullOrWhiteSpace(channel.username) ? ChannelType.Supergroup : ChannelType.PrivateSupergroup);
@@ -323,7 +342,14 @@ public class ChannelService : IChannelService, IDisposable
                 channelInfo.IsScam = channel.flags.HasFlag(Channel.Flags.scam);
                 channelInfo.IsRestricted = channel.flags.HasFlag(Channel.Flags.restricted);
                 channelInfo.HasProtectedContent = channel.flags.HasFlag(Channel.Flags.noforwards);
-                // channelInfo.CreatedDate = channel.date == 0 ? null : DateTimeOffset.FromUnixTimeSeconds(channel.date).DateTime;
+                
+                // Check if this is a "min" constructor which has limited access hash usability
+                if (channel.flags.HasFlag(Channel.Flags.min))
+                {
+                    _logger.LogWarning("Channel {Username} has 'min' flag - access hash may be limited for some operations", username);
+                }
+                
+                channelInfo.CreatedDate = channel.date != default(DateTime) ? (DateTime?)channel.date : null;
                 
                 if (channel.participants_count > 0)
                 {
@@ -333,7 +359,8 @@ public class ChannelService : IChannelService, IDisposable
 
             case Chat regularChat:
                 channelInfo.Type = ChannelType.Group;
-                // channelInfo.CreatedDate = regularChat.date == 0 ? null : DateTimeOffset.FromUnixTimeSeconds(regularChat.date).DateTime;
+                // Regular chats don't have access hash, they use the chat ID directly
+                channelInfo.CreatedDate = regularChat.date != default(DateTime) ? (DateTime?)regularChat.date : null;
                 channelInfo.MemberCount = regularChat.participants_count;
                 break;
         }

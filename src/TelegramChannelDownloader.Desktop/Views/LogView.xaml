@@ -59,7 +59,7 @@
                             <TextBlock Text="{Binding FormattedMessage}" 
                                        FontFamily="Consolas, Courier New, Monospace"
                                        FontSize="12"
-                                       Foreground="Black"
+                                       Foreground="#2C3E50"
                                        TextWrapping="Wrap" />
                         </Border>
                     </DataTemplate>

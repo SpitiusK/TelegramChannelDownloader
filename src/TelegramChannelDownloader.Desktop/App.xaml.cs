@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TelegramChannelDownloader.Core.Extensions;
 using TelegramChannelDownloader.Desktop.Services;
 using TelegramChannelDownloader.Desktop.ViewModels;
@@ -42,6 +43,22 @@ public partial class App : Application
                 
                 // Register Views
                 services.AddTransient<MainWindow>();
+            })
+            .ConfigureLogging((context, logging) =>
+            {
+                // Clear default providers
+                logging.ClearProviders();
+                
+                // Add console logging for development
+                logging.AddConsole();
+                
+                // Add our custom UI logger provider
+                logging.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
+                {
+                    var mainViewModelFactory = new Func<MainViewModel>(() => 
+                        serviceProvider.GetRequiredService<MainViewModel>());
+                    return new UILoggerProvider(mainViewModelFactory);
+                });
             })
             .Build();
 

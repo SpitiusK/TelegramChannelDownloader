@@ -16,14 +16,14 @@ public class LogLevelToColorConverter : IValueConverter
         {
             return level switch
             {
-                LogLevel.Info => new SolidColorBrush(Colors.LightGray),
-                LogLevel.Warning => new SolidColorBrush(Colors.Orange),
-                LogLevel.Error => new SolidColorBrush(Colors.LightCoral),
-                _ => new SolidColorBrush(Colors.White)
+                LogLevel.Info => new SolidColorBrush(Color.FromRgb(240, 248, 255)),      // AliceBlue - light blue
+                LogLevel.Warning => new SolidColorBrush(Color.FromRgb(255, 248, 220)),   // Cornsilk - light yellow 
+                LogLevel.Error => new SolidColorBrush(Color.FromRgb(255, 240, 245)),     // LavenderBlush - light pink
+                _ => new SolidColorBrush(Color.FromRgb(248, 249, 250))                   // Very light gray
             };
         }
         
-        return new SolidColorBrush(Colors.White);
+        return new SolidColorBrush(Color.FromRgb(248, 249, 250)); // Very light gray
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -1,6 +1,7 @@
 using TelegramChannelDownloader.Core.Models;
 using TelegramChannelDownloader.Core.Exceptions;
 using TelegramChannelDownloader.TelegramApi;
+using TelegramChannelDownloader.TelegramApi.Authentication.Models;
 using TelegramChannelDownloader.TelegramApi.Channels.Models;
 using TelegramChannelDownloader.TelegramApi.Messages.Models;
 using System.Collections.Concurrent;
@@ -90,7 +91,27 @@ public class DownloadService : IDownloadService
                 _logger.LogInformation("Created output directory: {Directory}", request.OutputDirectory);
             }
 
-            // Phase 3: Get channel information
+            // Phase 3: Pre-download authentication verification
+            ReportProgress(progress, Core.Models.DownloadProgressInfo.ForPhase(downloadId, DownloadPhase.Validating, "Verifying authentication state"));
+            
+            // Verify authentication state before attempting channel operations
+            if (!_telegramClient.IsConnected || _telegramClient.CurrentAuthStatus?.State != AuthenticationState.Authenticated)
+            {
+                _logger.LogError("Authentication lost before download attempt for {DownloadId}", downloadId);
+                throw new DownloadException("Telegram authentication has expired. Please re-authenticate and try again.");
+            }
+
+            // Test connection stability
+            var connectionTest = await _telegramClient.TestConnectionAsync();
+            if (!connectionTest)
+            {
+                _logger.LogError("Connection test failed before download for {DownloadId}", downloadId);
+                throw new DownloadException("Connection to Telegram servers failed. Please check your internet connection and authentication status.");
+            }
+
+            _logger.LogDebug("Authentication and connection verified for download {DownloadId}", downloadId);
+
+            // Phase 4: Get channel information
             ReportProgress(progress, Core.Models.DownloadProgressInfo.ForPhase(downloadId, DownloadPhase.Validating, "Retrieving channel information"));
             
             var channelInfo = await _telegramClient.GetChannelInfoAsync(request.ChannelUrl);
@@ -99,7 +120,7 @@ public class DownloadService : IDownloadService
                 throw new DownloadException($"Cannot download from channel: {channelInfo?.ValidationMessage ?? "Unknown error"}");
             }
 
-            // Phase 4: Count messages
+            // Phase 5: Count messages
             status.Phase = DownloadPhase.Counting;
             status.ChannelInfo = channelInfo;
             await UpdateDownloadStatusAsync(downloadId, status);
@@ -122,7 +143,7 @@ public class DownloadService : IDownloadService
             _logger.LogInformation("Found {MessageCount} messages in channel {ChannelName}", 
                 totalMessages, channelInfo.DisplayName);
 
-            // Phase 5: Download messages
+            // Phase 6: Download messages
             status.Phase = DownloadPhase.Downloading;
             status.TotalMessages = totalMessages;
             await UpdateDownloadStatusAsync(downloadId, status);
@@ -162,7 +183,7 @@ public class DownloadService : IDownloadService
             _logger.LogInformation("Downloaded {MessageCount} messages from {ChannelName}", 
                 messages.Count, channelInfo.DisplayName);
 
-            // Phase 6: Export to file
+            // Phase 7: Export to file
             status.Phase = DownloadPhase.Exporting;
             status.DownloadedMessages = messages.Count;
             await UpdateDownloadStatusAsync(downloadId, status);
@@ -210,7 +231,7 @@ public class DownloadService : IDownloadService
                 throw new ExportException($"Export failed: {exportResult.ErrorMessage}");
             }
 
-            // Phase 7: Finalize
+            // Phase 8: Finalize
             status.Phase = DownloadPhase.Completed;
             status.CompletedAt = DateTime.UtcNow;
             status.CanCancel = false;

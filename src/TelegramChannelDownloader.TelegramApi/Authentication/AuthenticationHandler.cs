@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Net.Http;
 using TelegramChannelDownloader.TelegramApi.Authentication.Models;
 using TelegramChannelDownloader.TelegramApi.Configuration;
 using WTelegram;
@@ -67,8 +68,8 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
                 return CurrentStatus = AuthResult.Failure(AuthenticationState.ConnectionError, "Invalid configuration", errors);
             }
 
-            // Dispose existing client if any
-            _client?.Dispose();
+            // Dispose existing client if any and ensure file handles are released
+            await DisposePreviousClientAsync();
 
             _config = config;
             _credentials = new TelegramCredentials
@@ -80,17 +81,81 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
             // Update status to connecting
             CurrentStatus = AuthResult.Success(AuthenticationState.Connecting, "Initializing connection...");
 
-            _logger.LogDebug("Creating WTelegram client with API ID: {ApiId}", config.ApiId);
+            _logger.LogDebug("Creating WTelegram client with API ID: {ApiId}, API Hash length: {ApiHashLength}", 
+                config.ApiId, config.ApiHash?.Length ?? 0);
+            
+            // Additional validation before connection
+            if (config.ApiId <= 0)
+            {
+                throw new ArgumentException($"Invalid API ID: {config.ApiId}. Must be a positive integer.");
+            }
+            
+            if (string.IsNullOrWhiteSpace(config.ApiHash) || config.ApiHash.Length != 32)
+            {
+                throw new ArgumentException($"Invalid API Hash: must be exactly 32 characters, got {config.ApiHash?.Length ?? 0} characters.");
+            }
 
-            // Create WTelegram client with configuration
-            _client = new Client(Config);
+            // Create WTelegram client with configuration and retry logic for file conflicts
+            _client = await CreateClientWithRetryAsync();
+            
+            _logger.LogDebug("WTelegram client created, attempting to connect...");
 
-            // Test basic connectivity
-            await _client.ConnectAsync();
+            try
+            {
+                // Test basic connectivity
+                _logger.LogDebug("Attempting to connect to Telegram servers...");
+                
+                // Try basic network connectivity test first
+                try
+                {
+                    using var httpClient = new HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(10);
+                    var response = await httpClient.GetAsync("https://api.telegram.org/", cancellationToken);
+                    _logger.LogDebug("Basic HTTP connectivity to Telegram API: {StatusCode}", response.StatusCode);
+                }
+                catch (Exception httpEx)
+                {
+                    _logger.LogWarning("HTTP connectivity test failed: {Error}", httpEx.Message);
+                }
+                
+                await _client.ConnectAsync();
+                _logger.LogInformation("Successfully connected to Telegram servers");
+            }
+            catch (Exception connectEx)
+            {
+                _logger.LogError(connectEx, "Failed to connect to Telegram servers during ConnectAsync. Error: {ErrorType} - {ErrorMessage}", 
+                    connectEx.GetType().Name, connectEx.Message);
+                
+                // Log additional details if available
+                if (connectEx.InnerException != null)
+                {
+                    _logger.LogError("Inner exception: {InnerExceptionType} - {InnerExceptionMessage}", 
+                        connectEx.InnerException.GetType().Name, connectEx.InnerException.Message);
+                }
+                
+                // Add more specific error context
+                var errorMessage = connectEx.Message.ToLower();
+                if (errorMessage.Contains("timeout") || errorMessage.Contains("network"))
+                {
+                    _logger.LogError("Network connectivity issue detected. This might be due to:");
+                    _logger.LogError("1. Firewall blocking Telegram connections");
+                    _logger.LogError("2. ISP blocking Telegram in your region");
+                    _logger.LogError("3. Proxy configuration needed");
+                    _logger.LogError("4. Temporary Telegram server issues");
+                }
+                else if (errorMessage.Contains("unauthorized") || errorMessage.Contains("invalid"))
+                {
+                    _logger.LogError("Authentication issue detected. Please verify:");
+                    _logger.LogError("1. API ID and Hash are correct from my.telegram.org");
+                    _logger.LogError("2. API credentials haven't been revoked");
+                }
+                
+                throw;
+            }
 
-            _logger.LogInformation("Successfully connected to Telegram servers");
-
-            return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForPhoneNumber, "Please provide your phone number");
+            // Connection successful - ready for phone number input
+            // Session restoration will be handled in AuthenticatePhoneAsync
+            return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForPhoneNumber, "Connected to Telegram. Please provide your phone number");
         }
         catch (Exception ex)
         {
@@ -119,53 +184,29 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
                 return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Phone number cannot be empty");
             }
 
-            CurrentStatus = AuthResult.Success(AuthenticationState.Connecting, "Sending verification code...");
+            CurrentStatus = AuthResult.Success(AuthenticationState.Connecting, "Starting authentication...");
 
             // Store phone number in credentials
             _credentials.PhoneNumber = phoneNumber;
 
             _logger.LogDebug("Starting authentication process for phone: {Phone}", phoneNumber.Substring(0, Math.Min(phoneNumber.Length, 5)) + "***");
 
+            // Use WTelegram's non-blocking Login method instead of LoginUserIfNeeded
+            // This prevents console blocking and allows UI-driven authentication
             try
             {
-                // Start the authentication process
-                var user = await _client.LoginUserIfNeeded();
-                if (user != null)
-                {
-                    return await HandleSuccessfulAuthenticationAsync(user);
-                }
-                else
-                {
-                    // If no user returned but no exception, likely waiting for verification code
-                    return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForVerificationCode, "Please enter the verification code sent to your phone");
-                }
-            }
-            catch (WTelegram.WTException ex) when (ex.Message.Contains("phone_code") || ex.Message.Contains("PHONE_CODE"))
-            {
-                // Verification code is needed
-                _logger.LogDebug("Verification code requested");
-                return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForVerificationCode, "Please enter the verification code sent to your phone");
-            }
-            catch (WTelegram.WTException ex) when (ex.Message.Contains("SESSION_PASSWORD_NEEDED"))
-            {
-                // Two-factor authentication is needed
-                _logger.LogDebug("Two-factor authentication required");
-                return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForTwoFactorAuth, "Please enter your two-factor authentication password");
-            }
-            catch (WTelegram.WTException ex)
-            {
-                // Log the actual exception message for debugging
-                _logger.LogWarning("WTelegram exception during phone auth: {Message}", ex.Message);
+                _logger.LogDebug("Calling WTelegram Login with phone number");
+                var loginResult = await _client.Login(phoneNumber);
                 
-                // Check if it might be asking for verification code
-                if (ex.Message.ToUpper().Contains("CODE") || ex.Message.ToUpper().Contains("VERIFICATION"))
-                {
-                    return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForVerificationCode, "Please enter the verification code sent to your phone");
-                }
-                else
-                {
-                    throw; // Re-throw if it's not a code-related exception
-                }
+                _logger.LogDebug("WTelegram Login result: {LoginResult}", loginResult ?? "null");
+                
+                // Handle different login stages
+                return await HandleLoginResultAsync(loginResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Login method failed with phone number");
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Authentication failed", ex.Message, ex);
             }
         }
         catch (Exception ex)
@@ -195,30 +236,39 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
                 return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Verification code cannot be empty");
             }
 
+            if (CurrentStatus.State != AuthenticationState.WaitingForVerificationCode)
+            {
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Invalid state for verification code. Use AuthenticatePhoneAsync first.");
+            }
+
             CurrentStatus = AuthResult.Success(AuthenticationState.Connecting, "Verifying code...");
 
             _credentials.VerificationCode = verificationCode;
 
-            _logger.LogDebug("Verifying authentication code");
+            _logger.LogDebug("Verifying authentication code: {CodeLength} digits", verificationCode.Length);
 
             try
             {
-                // Continue the authentication process with the verification code
-                var user = await _client.LoginUserIfNeeded();
-                if (user != null)
-                {
-                    return await HandleSuccessfulAuthenticationAsync(user);
-                }
-                else
-                {
-                    return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Authentication failed - no user returned");
-                }
+                // Use WTelegram's non-blocking Login method with verification code
+                _logger.LogDebug("Calling WTelegram Login with verification code");
+                var loginResult = await _client.Login(verificationCode);
+                
+                _logger.LogDebug("WTelegram Login result after code: {LoginResult}", loginResult ?? "null");
+                
+                // Handle the result of code verification
+                return await HandleLoginResultAsync(loginResult);
             }
-            catch (WTelegram.WTException ex) when (ex.Message.Contains("SESSION_PASSWORD_NEEDED"))
+            catch (WTelegram.WTException ex) when (ex.Message.Contains("PHONE_CODE_INVALID"))
             {
-                // Two-factor authentication is needed
-                _logger.LogDebug("Two-factor authentication required after code verification");
-                return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForTwoFactorAuth, "Please enter your two-factor authentication password");
+                _logger.LogWarning("Invalid verification code provided");
+                // Return to waiting for verification code state
+                _credentials.VerificationCode = null; // Clear invalid code
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.WaitingForVerificationCode, "Invalid verification code. Please try again.", ex.Message);
+            }
+            catch (WTelegram.WTException ex) when (ex.Message.Contains("PHONE_CODE_EXPIRED"))
+            {
+                _logger.LogWarning("Verification code expired");
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Verification code expired. Please restart authentication.", ex.Message);
             }
         }
         catch (Exception ex)
@@ -254,15 +304,21 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
 
             _logger.LogDebug("Verifying two-factor authentication");
 
-            // Complete the authentication process with the 2FA password
-            var user = await _client.LoginUserIfNeeded();
-            if (user != null)
+            try
             {
-                return await HandleSuccessfulAuthenticationAsync(user);
+                // Use WTelegram's non-blocking Login method with 2FA password
+                _logger.LogDebug("Calling WTelegram Login with 2FA password");
+                var loginResult = await _client.Login(password);
+                
+                _logger.LogDebug("WTelegram Login result after 2FA: {LoginResult}", loginResult ?? "null");
+                
+                // Handle the result of 2FA verification
+                return await HandleLoginResultAsync(loginResult);
             }
-            else
+            catch (WTelegram.WTException ex) when (ex.Message.Contains("PASSWORD_HASH_INVALID"))
             {
-                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Authentication failed - no user returned");
+                _logger.LogWarning("Invalid 2FA password provided");
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.WaitingForTwoFactorAuth, "Invalid password. Please try again.", ex.Message);
             }
         }
         catch (Exception ex)
@@ -355,15 +411,23 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
             // Set the session data (phone number in this simple case)
             _credentials.PhoneNumber = sessionData;
 
-            // Try to get current user info to validate session
-            var me = await _client.LoginUserIfNeeded();
-            if (me != null)
+            // Check if user is already authenticated (session restored automatically)
+            if (_client.User != null)
             {
-                return await HandleSuccessfulAuthenticationAsync(me);
+                _logger.LogDebug("Session restored automatically, user already authenticated");
+                return await HandleSuccessfulAuthenticationAsync(_client.User);
             }
-            else
+            
+            // Try to authenticate with the session - use non-blocking Login method
+            try
             {
-                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Session restoration failed - unable to verify user");
+                var loginResult = await _client.Login(sessionData);
+                return await HandleLoginResultAsync(loginResult);
+            }
+            catch (Exception loginEx)
+            {
+                _logger.LogDebug("Session restoration with Login method failed: {Message}", loginEx.Message);
+                return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Session restoration failed - please authenticate again", loginEx.Message);
             }
         }
         catch (Exception ex)
@@ -371,6 +435,15 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
             _logger.LogError(ex, "Failed to restore session");
             return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Session restoration failed", ex.Message, ex);
         }
+    }
+
+    /// <summary>
+    /// Gets the underlying WTelegram client for shared use by other services
+    /// </summary>
+    /// <returns>WTelegram client instance, or null if not initialized</returns>
+    public Client? GetClient()
+    {
+        return _client;
     }
 
     /// <summary>
@@ -395,6 +468,59 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
         {
             _logger.LogError(ex, "Connection test failed");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Handles the result from WTelegram's Login method and determines next authentication step
+    /// </summary>
+    /// <param name="loginResult">Result from WTelegram Login call</param>
+    /// <returns>Authentication result with appropriate state</returns>
+    private async Task<AuthResult> HandleLoginResultAsync(string? loginResult)
+    {
+        try
+        {
+            _logger.LogDebug("Processing WTelegram login result: {LoginResult}", loginResult ?? "null");
+            
+            if (string.IsNullOrEmpty(loginResult))
+            {
+                // Login successful - user is now authenticated
+                if (_client?.User != null)
+                {
+                    _logger.LogDebug("Login successful, user authenticated");
+                    return await HandleSuccessfulAuthenticationAsync(_client.User);
+                }
+                else
+                {
+                    _logger.LogWarning("Login result is null but no user found");
+                    return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Authentication completed but no user information available");
+                }
+            }
+            
+            // Handle different stages of authentication process
+            switch (loginResult)
+            {
+                case "verification_code":
+                    _logger.LogDebug("WTelegram requesting verification code");
+                    return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForVerificationCode, "Verification code sent. Please enter the code from your phone.");
+                
+                case "password":
+                    _logger.LogDebug("WTelegram requesting 2FA password");
+                    return CurrentStatus = AuthResult.Success(AuthenticationState.WaitingForTwoFactorAuth, "Please enter your two-factor authentication password");
+                
+                case "first_name":
+                    _logger.LogWarning("New user signup required - not supported in this implementation");
+                    return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "New user signup is not supported. Please create your Telegram account first.");
+                
+                default:
+                    _logger.LogWarning("Unknown login result from WTelegram: {LoginResult}", loginResult);
+                    return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, $"Unexpected authentication stage: {loginResult}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing login result");
+            return CurrentStatus = AuthResult.Failure(AuthenticationState.AuthenticationFailed, "Failed to process authentication result", ex.Message, ex);
         }
     }
 
@@ -435,11 +561,16 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
 
     /// <summary>
     /// Configuration callback for WTelegramClient
+    /// NOTE: With the new Login() method approach, this callback should rarely be used
+    /// but we keep it safe to prevent any console blocking issues
     /// </summary>
     private string? Config(string what)
     {
+        _logger.LogDebug("WTelegramClient Config callback requested: {ConfigKey}", what);
+        
         if (_credentials == null)
         {
+            _logger.LogWarning("Config callback called but _credentials is null for key: {ConfigKey}", what);
             return null;
         }
 
@@ -448,32 +579,131 @@ public class AuthenticationHandler : IAuthenticationHandler, IDisposable
             "api_id" => _credentials.ApiId.ToString(),
             "api_hash" => _credentials.ApiHash,
             "phone_number" => _credentials.PhoneNumber,
-            "verification_code" => HandleVerificationCodeRequest(),
-            "password" => HandleTwoFactorPasswordRequest(),
+            // CRITICAL: Never wait for interactive input in Config callback
+            // These should return immediately with available data or null
+            "verification_code" => _credentials.VerificationCode, // Return immediately, no waiting
+            "password" => _credentials.TwoFactorPassword, // Return immediately, no waiting  
             "session_pathname" => _config?.SessionPath ?? "session.dat",
+            "server_address" => "149.154.167.50:443", // Try alternative server
+            "device_model" => "Desktop",
+            "system_version" => "Windows 10",
+            "app_version" => "1.0.0",
+            "lang_code" => "en",
             _ => null
         };
 
-        _logger.LogTrace("Config requested: {ConfigKey} = {ConfigValue}", what, result ?? "null");
+        _logger.LogDebug("Config callback returning for {ConfigKey}: {ConfigValue}", 
+            what, 
+            what == "api_hash" || what == "password" ? "[REDACTED]" : result ?? "null");
         return result;
     }
 
+
     /// <summary>
-    /// Handles verification code requests from WTelegramClient
+    /// Properly disposes of the previous client and ensures file handles are released
     /// </summary>
-    private string? HandleVerificationCodeRequest()
+    private async Task DisposePreviousClientAsync()
     {
-        _logger.LogDebug("Verification code requested by WTelegram client");
-        return _credentials?.VerificationCode;
+        if (_client != null)
+        {
+            try
+            {
+                _logger.LogDebug("Disposing existing WTelegram client");
+                
+                // First try to properly log out to release server-side session
+                try
+                {
+                    await _client.Auth_LogOut();
+                }
+                catch (Exception logoutEx)
+                {
+                    _logger.LogDebug("Logout failed during disposal (may be expected): {Message}", logoutEx.Message);
+                }
+                
+                // Dispose the client
+                _client.Dispose();
+                
+                // Wait a brief moment to ensure file handles are released
+                await Task.Delay(100);
+                
+                // Force garbage collection to release any lingering file handles
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                
+                _client = null;
+                _logger.LogDebug("Previous WTelegram client disposed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during client disposal, proceeding anyway");
+                _client = null;
+            }
+        }
     }
 
     /// <summary>
-    /// Handles two-factor password requests from WTelegramClient
+    /// Creates WTelegram client with retry logic to handle file access conflicts
     /// </summary>
-    private string? HandleTwoFactorPasswordRequest()
+    private async Task<Client> CreateClientWithRetryAsync()
     {
-        _logger.LogDebug("Two-factor password requested by WTelegram client");
-        return _credentials?.TwoFactorPassword;
+        const int maxRetries = 3;
+        const int delayMs = 500;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                _logger.LogDebug("Attempting to create WTelegram client (attempt {Attempt}/{MaxRetries})", attempt, maxRetries);
+                
+                // Try to create the client
+                var client = new Client(Config);
+                _logger.LogDebug("WTelegram client created successfully on attempt {Attempt}", attempt);
+                return client;
+            }
+            catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
+            {
+                _logger.LogWarning("Session file locked on attempt {Attempt}: {Message}", attempt, ioEx.Message);
+                
+                if (attempt == maxRetries)
+                {
+                    _logger.LogError("Failed to create client after {MaxRetries} attempts. Trying alternative session file.", maxRetries);
+                    
+                    // As last resort, try with a temporary session file
+                    var tempSessionPath = Path.GetTempFileName() + ".session";
+                    _logger.LogWarning("Using temporary session file: {TempSessionPath}", tempSessionPath);
+                    
+                    // Update config to use temp session
+                    var originalSessionPath = _config?.SessionPath;
+                    if (_config != null)
+                    {
+                        _config.SessionPath = tempSessionPath;
+                    }
+                    
+                    try
+                    {
+                        return new Client(Config);
+                    }
+                    finally
+                    {
+                        // Restore original session path
+                        if (_config != null && originalSessionPath != null)
+                        {
+                            _config.SessionPath = originalSessionPath;
+                        }
+                    }
+                }
+                
+                // Wait before retrying
+                await Task.Delay(delayMs * attempt);
+                
+                // Try to force release any lingering handles
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+        
+        // This should never be reached due to the throw in the catch block
+        throw new InvalidOperationException("Failed to create WTelegram client after all retry attempts");
     }
 
     /// <summary>

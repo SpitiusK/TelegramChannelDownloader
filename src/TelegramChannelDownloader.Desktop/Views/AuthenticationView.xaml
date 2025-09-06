@@ -48,6 +48,7 @@
                         </Ellipse>
                         <TextBlock Text="{Binding ConnectionStatus}" 
                                    FontWeight="Medium" 
+                                   Foreground="#2C3E50"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -58,7 +59,7 @@
                         
                         <!-- API ID -->
                         <StackPanel>
-                            <TextBlock Text="API ID:" FontWeight="Medium" />
+                            <TextBlock Text="API ID:" FontWeight="Medium" Foreground="#2C3E50" />
                             <TextBox Text="{Binding ApiId, UpdateSourceTrigger=PropertyChanged}" 
                                      BorderBrush="{Binding IsApiIdValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                      BorderThickness="2"
@@ -72,7 +73,7 @@
                         
                         <!-- API Hash -->
                         <StackPanel Margin="0,10,0,0">
-                            <TextBlock Text="API Hash:" FontWeight="Medium" />
+                            <TextBlock Text="API Hash:" FontWeight="Medium" Foreground="#2C3E50" />
                             <TextBox Text="{Binding ApiHash, UpdateSourceTrigger=PropertyChanged}" 
                                      BorderBrush="{Binding IsApiHashValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                      BorderThickness="2"
@@ -113,7 +114,8 @@
                     <StackPanel Margin="10">
                         <TextBlock Text="Enter your phone number (with country code):" 
                                    TextWrapping="Wrap" 
-                                   FontStyle="Italic" />
+                                   FontStyle="Italic"
+                                   Foreground="#2C3E50" />
                         <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" 
                                  BorderBrush="{Binding IsPhoneNumberValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                  BorderThickness="2"
@@ -149,7 +151,8 @@
                     <StackPanel Margin="10">
                         <TextBlock Text="Enter the verification code sent to your phone:" 
                                    TextWrapping="Wrap" 
-                                   FontStyle="Italic" />
+                                   FontStyle="Italic"
+                                   Foreground="#2C3E50" />
                         <TextBox Text="{Binding VerificationCode, UpdateSourceTrigger=PropertyChanged}" 
                                  BorderBrush="{Binding IsVerificationCodeValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                  BorderThickness="2"
@@ -186,7 +189,8 @@
                     <StackPanel Margin="10">
                         <TextBlock Text="Enter your two-factor authentication password:" 
                                    TextWrapping="Wrap" 
-                                   FontStyle="Italic" />
+                                   FontStyle="Italic"
+                                   Foreground="#2C3E50" />
                         <PasswordBox x:Name="TwoFactorPasswordBox"
                                      BorderBrush="{Binding IsTwoFactorCodeValid, Converter={StaticResource ValidationToBorderBrushConverter}}"
                                      BorderThickness="2"
@@ -222,7 +226,8 @@
                     <StackPanel Margin="10">
                         <TextBlock Text="{Binding CurrentUser.DisplayName}" 
                                    FontWeight="Bold"
-                                   FontSize="14" />
+                                   FontSize="14"
+                                   Foreground="#2C3E50" />
                         <TextBlock Text="{Binding CurrentUser.Username, StringFormat='@{0}'}" 
                                    Foreground="#7F8C8D"
                                    Margin="0,5,0,0"

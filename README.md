@@ -313,17 +313,9 @@ The application does not currently use environment variables. All configuration 
 - Verify write permissions to output directory
 - Ensure stable internet connection
 
-### Getting Help
-If you encounter issues:
-1. Check the application logs in the UI
-2. Verify all prerequisites are installed
-3. Review this troubleshooting section
-4. Search existing [GitHub Issues](https://github.com/your-username/TelegramChannelDownloader/issues)
-5. Create a new issue with detailed error information
-
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+We welcome contributions!
 
 ### Development Setup
 1. Fork the repository
@@ -366,13 +358,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Microsoft**: .NET platform and WPF framework
 - **Telegram**: API access and documentation
 - **Contributors**: All developers who have contributed to this project
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/TelegramChannelDownloader/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/TelegramChannelDownloader/discussions)
-- **Email**: [Insert contact email if desired]
-
 ---
 
 **Disclaimer**: This tool is for legitimate use only. Users are responsible for complying with Telegram's Terms of Service and applicable laws. The developers assume no responsibility for misuse of this software.

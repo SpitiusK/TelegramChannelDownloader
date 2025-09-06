@@ -1,5 +1,6 @@
 using TelegramChannelDownloader.TelegramApi.Authentication.Models;
 using TelegramChannelDownloader.TelegramApi.Configuration;
+using WTelegram;
 
 namespace TelegramChannelDownloader.TelegramApi.Authentication;
 
@@ -70,6 +71,12 @@ public interface IAuthenticationHandler
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Authentication result</returns>
     Task<AuthResult> RestoreSessionAsync(string sessionData, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the underlying WTelegram client for shared use by other services
+    /// </summary>
+    /// <returns>WTelegram client instance, or null if not initialized</returns>
+    Client? GetClient();
 
     /// <summary>
     /// Tests the connection to Telegram servers

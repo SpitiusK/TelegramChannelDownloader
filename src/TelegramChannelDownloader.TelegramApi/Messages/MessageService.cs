@@ -99,8 +99,14 @@ public class MessageService : IMessageService, IDisposable
         _logger.LogInformation("Starting batch download from channel: {ChannelTitle} (ID: {ChannelId}), batch size: {BatchSize}", 
             channelInfo.Title, channelInfo.Id, batchSize);
 
+        // Validate that we have a proper access hash for channel operations
+        if (!channelInfo.AccessHash.HasValue || channelInfo.AccessHash.Value == 0)
+        {
+            throw new InvalidOperationException($"Channel {channelInfo.Title} does not have a valid access hash. This usually means the channel information was not properly retrieved or the channel is not accessible.");
+        }
+
         var startTime = DateTime.UtcNow;
-        var peer = new InputPeerChannel(channelInfo.Id, channelInfo.AccessHash ?? 0);
+        var peer = new InputPeerChannel(channelInfo.Id, channelInfo.AccessHash.Value);
         
         // Get initial count estimate
         var initialHistory = await _client.Messages_GetHistory(peer, limit: 1);
@@ -202,6 +208,28 @@ public class MessageService : IMessageService, IDisposable
                 _logger.LogWarning("Rate limited, waiting {WaitSeconds} seconds before continuing", waitSeconds);
                 await Task.Delay(TimeSpan.FromSeconds(waitSeconds), cancellationToken);
                 continue; // Skip yielding this iteration
+            }
+            catch (WTelegram.WTException ex) when (
+                ex.Message.Contains("CHANNEL_INVALID") || 
+                ex.Message.Contains("CHAT_ID_INVALID") ||
+                ex.Message.Contains("CHANNEL_PRIVATE") ||
+                ex.Message.Contains("CHAT_INVALID"))
+            {
+                var errorMessage = ex.Message switch
+                {
+                    string msg when msg.Contains("CHANNEL_INVALID") => 
+                        $"Channel {channelInfo.Title} is not valid or accessible. This may be due to an invalid access hash or insufficient permissions.",
+                    string msg when msg.Contains("CHAT_ID_INVALID") => 
+                        $"Channel {channelInfo.Title} ID is invalid. This usually means the channel was not properly resolved.",
+                    string msg when msg.Contains("CHANNEL_PRIVATE") => 
+                        $"Channel {channelInfo.Title} is private and you don't have access to it.",
+                    string msg when msg.Contains("CHAT_INVALID") => 
+                        $"Channel {channelInfo.Title} is invalid or not accessible.",
+                    _ => $"Channel access error: {ex.Message}"
+                };
+                
+                _logger.LogError(ex, "Channel access error for {ChannelTitle}: {ErrorMessage}", channelInfo.Title, errorMessage);
+                throw new InvalidOperationException(errorMessage, ex);
             }
             catch (Exception ex)
             {
@@ -420,15 +448,15 @@ public class MessageService : IMessageService, IDisposable
             var messageData = new MessageData
             {
                 MessageId = telegramMessage.id,
-                Timestamp = DateTime.UtcNow, // TODO: Fix date conversion
+                Timestamp = telegramMessage.date,
                 Content = telegramMessage.message ?? string.Empty,
                 ChannelId = channelInfo.Id,
                 ChannelTitle = channelInfo.Title,
                 Views = telegramMessage.views,
-                // IsEdited = telegramMessage.edit_date != 0,
-                // EditedTimestamp = telegramMessage.edit_date != 0 
-                //     ? DateTimeOffset.FromUnixTimeSeconds(telegramMessage.edit_date).UtcDateTime 
-                //     : null
+                IsEdited = telegramMessage.edit_date != default(DateTime),
+                EditedTimestamp = telegramMessage.edit_date != default(DateTime) 
+                    ? telegramMessage.edit_date 
+                    : null
             };
 
             // Set sender information
@@ -446,7 +474,7 @@ public class MessageService : IMessageService, IDisposable
             {
                 messageData.ForwardInfo = new ForwardInfo
                 {
-                    // OriginalDate = DateTimeOffset.FromUnixTimeSeconds(telegramMessage.fwd_from.date).UtcDateTime,
+                    OriginalDate = telegramMessage.fwd_from.date,
                     OriginalSender = telegramMessage.fwd_from.from_name,
                     OriginalMessageId = telegramMessage.fwd_from.channel_post
                 };

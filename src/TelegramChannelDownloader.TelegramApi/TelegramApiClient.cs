@@ -86,20 +86,31 @@ public class TelegramApiClient : ITelegramApiClient, IDisposable
                 return AuthResult.Failure(AuthenticationState.ConnectionError, "Invalid configuration", errorMessage);
             }
 
-            // Initialize WTelegram client with only API credentials
-            _client = new WTelegram.Client(what => what switch
+            // Dispose existing resources if reinitializing
+            _client?.Dispose();
+            if (_authenticationHandler != null)
             {
-                "api_id" => config.ApiId.ToString(),
-                "api_hash" => config.ApiHash,
-                "session_pathname" => _sessionManager.SessionPath,
-                _ => null
-            });
+                _authenticationHandler.StatusChanged -= OnAuthenticationStatusChanged;
+                if (_authenticationHandler is IDisposable disposable)
+                    disposable.Dispose();
+                _authenticationHandler = null;
+            }
 
-            // Create service instances with the initialized client
+            // Create service instances first, WITHOUT creating WTelegram client yet
             var authLogger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug))
                 .CreateLogger<AuthenticationHandler>();
             _authenticationHandler = new AuthenticationHandler(authLogger);
+            
+            // Subscribe to authentication status changes to forward them to UI
+            _authenticationHandler.StatusChanged += OnAuthenticationStatusChanged;
 
+            // Initialize the authentication handler with config and let IT create the client
+            var result = await _authenticationHandler.InitializeAsync(config, cancellationToken);
+            
+            // Get the shared client from AuthenticationHandler after initialization
+            _client = _authenticationHandler.GetClient();
+
+            // Now create other services with the shared client
             var channelLogger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug))
                 .CreateLogger<ChannelService>();
             _channelService = new ChannelService(channelLogger, _client);
@@ -107,8 +118,6 @@ public class TelegramApiClient : ITelegramApiClient, IDisposable
             var messageLogger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug))
                 .CreateLogger<MessageService>();
             _messageService = new MessageService(messageLogger, _client);
-
-            var result = await _authenticationHandler.InitializeAsync(config, cancellationToken);
             _logger.LogDebug("Telegram API client initialization completed with state: {State}", result.State);
 
             return result;
@@ -481,10 +490,9 @@ public class TelegramApiClient : ITelegramApiClient, IDisposable
             if (_authenticationHandler != null)
             {
                 _authenticationHandler.StatusChanged -= OnAuthenticationStatusChanged;
+                if (_authenticationHandler is IDisposable disposable)
+                    disposable.Dispose();
             }
-
-            if (_authenticationHandler is IDisposable authDisposable)
-                authDisposable.Dispose();
 
             if (_channelService is IDisposable channelDisposable)
                 channelDisposable.Dispose();
