@@ -36,6 +36,8 @@ public class MainViewModel : ObservableObject
 
         // Initialize with welcome message
         AddLogMessage("Application started. Please enter your API credentials to connect to Telegram.", LogLevel.Info);
+        AddLogMessage("Debug logging is now enabled - you can see detailed service logs here.", LogLevel.Debug);
+        AddLogMessage("Trace level logging is also available for the most detailed information.", LogLevel.Trace);
         
         // Apply initial settings
         ApplySettings();
@@ -205,6 +207,8 @@ public class MainViewModel : ObservableObject
         LogLevel.Error => "[ERROR] ",
         LogLevel.Warning => "[WARN] ",
         LogLevel.Info => "",
+        LogLevel.Debug => "[DEBUG] ",
+        LogLevel.Trace => "[TRACE] ",
         _ => ""
     };
 
@@ -227,6 +231,8 @@ public class LogEntry
 /// </summary>
 public enum LogLevel
 {
+    Trace,
+    Debug,
     Info,
     Warning,
     Error

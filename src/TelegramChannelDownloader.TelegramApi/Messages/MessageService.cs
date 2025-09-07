@@ -119,6 +119,7 @@ public class MessageService : IMessageService, IDisposable
         };
         int offsetId = 0;
         int totalProcessed = 0;
+        int totalSkipped = 0;
 
         _logger.LogDebug("Estimated total messages: {TotalEstimate}", totalEstimate);
 
@@ -154,6 +155,8 @@ public class MessageService : IMessageService, IDisposable
                 }
 
                 batch = new List<MessageData>();
+                int batchMinId = 0;
+                int skippedInBatch = 0;
                 
                 // Process messages in this batch
                 foreach (var message in historyMessages)
@@ -165,15 +168,43 @@ public class MessageService : IMessageService, IDisposable
                     {
                         batch.Add(messageData);
                     }
-                    
-                    // Update offset for next batch
-                    if (message.ID < offsetId || offsetId == 0)
+                    else
                     {
-                        offsetId = message.ID;
+                        skippedInBatch++;
                     }
+                    
+                    // Track the minimum (oldest) message ID in this batch
+                    if (batchMinId == 0 || message.ID < batchMinId)
+                    {
+                        batchMinId = message.ID;
+                    }
+                }
+                
+                // Update offset to the oldest message ID from this batch for next iteration
+                // Telegram pagination works backwards from newest to oldest
+                if (batchMinId > 0)
+                {
+                    offsetId = batchMinId;
+                    _logger.LogDebug("Batch processed: {BatchCount} valid messages from {TotalRaw} raw messages ({SkippedCount} skipped), ID range: {MinId} to {MaxId}, next offsetId: {OffsetId}", 
+                        batch.Count, 
+                        historyMessages.Length,
+                        skippedInBatch,
+                        batch.Count > 0 ? batch.Min(m => m.MessageId) : 0,
+                        batch.Count > 0 ? batch.Max(m => m.MessageId) : 0,
+                        offsetId);
+                }
+                else if (historyMessages.Length > 0)
+                {
+                    // Even if no valid messages were converted, we need to advance the offset
+                    // to avoid infinite loops on messages that can't be processed
+                    var rawMinId = historyMessages.Min(m => m.ID);
+                    offsetId = rawMinId;
+                    _logger.LogWarning("No valid messages converted from batch of {RawCount} messages ({SkippedCount} skipped), advancing offsetId to {OffsetId}", 
+                        historyMessages.Length, skippedInBatch, offsetId);
                 }
 
                 totalProcessed += batch.Count;
+                totalSkipped += skippedInBatch;
                 
                 // Report progress
                 if (progress != null)
@@ -194,11 +225,17 @@ public class MessageService : IMessageService, IDisposable
                 _logger.LogTrace("Downloaded batch of {BatchSize} messages (total: {TotalProcessed}/{TotalEstimate})", 
                     batch.Count, totalProcessed, totalEstimate);
 
-                // If we got fewer messages than requested, we've reached the end
-                isLastBatch = historyMessages.Length < batchSize;
+                // Check if we've reached the end - only stop when no messages are returned
+                // Don't stop just because we got fewer messages than requested
+                isLastBatch = historyMessages.Length == 0;
                 if (isLastBatch)
                 {
-                    _logger.LogDebug("Received fewer messages than requested, download complete");
+                    _logger.LogDebug("No messages returned, download complete");
+                }
+                else if (historyMessages.Length < batchSize)
+                {
+                    _logger.LogTrace("Received {ActualBatch} messages (requested {RequestedBatch}), continuing download", 
+                        historyMessages.Length, batchSize);
                 }
             }
             catch (WTelegram.WTException ex) when (ex.Message.Contains("FLOOD_WAIT"))
@@ -239,9 +276,17 @@ public class MessageService : IMessageService, IDisposable
 
             yield return batch;
 
-            // Check if this was the last batch
-            if (batch.Count < batchSize || isLastBatch)
+            // Only break if we got no messages (true end) or if this was explicitly marked as last batch
+            if (isLastBatch)
             {
+                _logger.LogDebug("Reached end of channel messages, total processed: {TotalProcessed}", totalProcessed);
+                break;
+            }
+            
+            // Add safety check to prevent infinite loops with duplicate messages
+            if (batch.Count == 0)
+            {
+                _logger.LogWarning("No valid messages in batch, stopping download to prevent infinite loop");
                 break;
             }
 
@@ -250,12 +295,12 @@ public class MessageService : IMessageService, IDisposable
         }
 
         var totalDuration = DateTime.UtcNow - startTime;
-        _logger.LogInformation("Batch download completed. Downloaded {TotalProcessed} messages in {Duration}", 
-            totalProcessed, totalDuration);
+        _logger.LogInformation("Batch download completed. Downloaded {TotalProcessed} messages ({TotalSkipped} skipped, {TotalRaw} total raw messages) in {Duration}", 
+            totalProcessed, totalSkipped, totalProcessed + totalSkipped, totalDuration);
     }
 
     /// <summary>
-    /// Exports downloaded messages to markdown format
+    /// Exports downloaded messages to Markdown format
     /// </summary>
     /// <param name="messages">List of messages to export</param>
     /// <param name="channelInfo">Channel information for header</param>
@@ -442,6 +487,8 @@ public class MessageService : IMessageService, IDisposable
         {
             if (messageBase is not Message telegramMessage)
             {
+                _logger.LogTrace("Skipping non-message type: {MessageType} (ID: {MessageId})", 
+                    messageBase.GetType().Name, messageBase.ID);
                 return null; // Skip service messages or other types
             }
 
@@ -508,7 +555,8 @@ public class MessageService : IMessageService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Failed to convert Telegram message {MessageId}", messageBase.ID);
+            _logger.LogWarning(ex, "Failed to convert Telegram message {MessageId} of type {MessageType}: {ErrorMessage}", 
+                messageBase.ID, messageBase.GetType().Name, ex.Message);
             return null; // Skip messages that fail to convert
         }
     }
@@ -687,7 +735,7 @@ public class MessageService : IMessageService, IDisposable
     }
 
     /// <summary>
-    /// Formats file size in human readable format
+    /// Formats file size in human-readable format
     /// </summary>
     private static string FormatFileSize(long bytes)
     {

@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelegramChannelDownloader.Core.Services;
+using TelegramChannelDownloader.DataBase.Extensions;
 
 namespace TelegramChannelDownloader.Core.Extensions;
 
@@ -16,26 +18,31 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddTelegramChannelDownloaderCore(this IServiceCollection services)
     {
-        // Register validation service as singleton (stateless)
-        services.AddSingleton<IValidationService, ValidationService>();
+        // Register validation service as scoped (depends on scoped TelegramApiClient)
+        services.AddScoped<IValidationService, ValidationService>();
 
         // Register export service as scoped (might have state during operations)
         services.AddScoped<IExportService, ExportService>();
 
-        // Register download service as scoped (maintains state during downloads)
+        // Register message mapping service as scoped
+        services.AddScoped<IMessageMappingService, MessageMappingService>();
+
+        // Register download service as scoped (maintains state during downloads) - now with database integration
         services.AddScoped<IDownloadService, DownloadService>();
 
         return services;
     }
 
     /// <summary>
-    /// Registers Core layer services with custom configurations
+    /// Registers Core layer services with database support and custom configurations
     /// </summary>
     /// <param name="services">The service collection</param>
+    /// <param name="configuration">Configuration for database connection strings</param>
     /// <param name="configureOptions">Optional configuration action</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddTelegramChannelDownloaderCore(
-        this IServiceCollection services, 
+        this IServiceCollection services,
+        IConfiguration configuration,
         Action<CoreServiceOptions>? configureOptions = null)
     {
         var options = new CoreServiceOptions();
@@ -43,6 +50,13 @@ public static class ServiceCollectionExtensions
 
         // Register configuration options
         services.AddSingleton(options);
+
+        // Add database layer services
+        services.AddTelegramDatabase(configuration, databaseOptions =>
+        {
+            databaseOptions.DatabaseOptions = options.DatabaseOptions;
+            databaseOptions.DataLifecycleOptions = options.DataLifecycleOptions;
+        });
 
         // Register services based on configuration
         if (options.UseMemoryCaching)
@@ -68,7 +82,7 @@ public static class ServiceCollectionExtensions
 }
 
 /// <summary>
-/// Configuration options for Core layer services
+/// Enhanced configuration options for Core layer services with database support
 /// </summary>
 public class CoreServiceOptions
 {
@@ -100,7 +114,7 @@ public class CoreServiceOptions
     /// <summary>
     /// Default batch size for message processing
     /// </summary>
-    public int DefaultBatchSize { get; set; } = 100;
+    public int DefaultBatchSize { get; set; } = 1000;
 
     /// <summary>
     /// Whether to enable detailed performance logging
@@ -121,4 +135,14 @@ public class CoreServiceOptions
     /// Default timeout for operations (in seconds)
     /// </summary>
     public int DefaultTimeoutSeconds { get; set; } = 300; // 5 minutes
+
+    /// <summary>
+    /// Database configuration options (delegates to DataBase layer)
+    /// </summary>
+    public DatabaseOptions DatabaseOptions { get; set; } = new();
+
+    /// <summary>
+    /// Data lifecycle management options (delegates to DataBase layer)
+    /// </summary>
+    public DataLifecycleOptions DataLifecycleOptions { get; set; } = new();
 }

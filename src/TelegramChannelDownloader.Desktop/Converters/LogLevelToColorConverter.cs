@@ -16,6 +16,8 @@ public class LogLevelToColorConverter : IValueConverter
         {
             return level switch
             {
+                LogLevel.Trace => new SolidColorBrush(Color.FromRgb(250, 250, 250)),     // Very light gray for trace
+                LogLevel.Debug => new SolidColorBrush(Color.FromRgb(230, 255, 230)),     // Light green for debug
                 LogLevel.Info => new SolidColorBrush(Color.FromRgb(240, 248, 255)),      // AliceBlue - light blue
                 LogLevel.Warning => new SolidColorBrush(Color.FromRgb(255, 248, 220)),   // Cornsilk - light yellow 
                 LogLevel.Error => new SolidColorBrush(Color.FromRgb(255, 240, 245)),     // LavenderBlush - light pink

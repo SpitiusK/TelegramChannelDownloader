@@ -96,8 +96,8 @@ internal class UILogger : ILogger
             Microsoft.Extensions.Logging.LogLevel.Error => ViewModels.LogLevel.Error,
             Microsoft.Extensions.Logging.LogLevel.Warning => ViewModels.LogLevel.Warning,
             Microsoft.Extensions.Logging.LogLevel.Information => ViewModels.LogLevel.Info,
-            Microsoft.Extensions.Logging.LogLevel.Debug => ViewModels.LogLevel.Info,
-            Microsoft.Extensions.Logging.LogLevel.Trace => ViewModels.LogLevel.Info,
+            Microsoft.Extensions.Logging.LogLevel.Debug => ViewModels.LogLevel.Debug,
+            Microsoft.Extensions.Logging.LogLevel.Trace => ViewModels.LogLevel.Trace,
             _ => ViewModels.LogLevel.Info
         };
     }

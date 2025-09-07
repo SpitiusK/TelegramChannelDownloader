@@ -10,6 +10,7 @@
     
     <UserControl.Resources>
         <converters:LogLevelToColorConverter x:Key="LogLevelToColorConverter" />
+        <converters:LogLevelToTextColorConverter x:Key="LogLevelToTextColorConverter" />
     </UserControl.Resources>
     
     <Grid>
@@ -59,7 +60,7 @@
                             <TextBlock Text="{Binding FormattedMessage}" 
                                        FontFamily="Consolas, Courier New, Monospace"
                                        FontSize="12"
-                                       Foreground="#2C3E50"
+                                       Foreground="{Binding Level, Converter={StaticResource LogLevelToTextColorConverter}}"
                                        TextWrapping="Wrap" />
                         </Border>
                     </DataTemplate>

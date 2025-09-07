@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramChannelDownloader.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramChannelDownloader.Desktop", "src\TelegramChannelDownloader.Desktop\TelegramChannelDownloader.Desktop.csproj", "{793F0FBF-858B-43D9-AD06-7DB8EAAEA200}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramChannelDownloader.DataBase", "src\TelegramChannelDownloader.DataBase\TelegramChannelDownloader.DataBase.csproj", "{140DB30E-517A-45BB-812F-66DAFD61BE00}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,18 @@ Global
 		{793F0FBF-858B-43D9-AD06-7DB8EAAEA200}.Release|x64.Build.0 = Release|Any CPU
 		{793F0FBF-858B-43D9-AD06-7DB8EAAEA200}.Release|x86.ActiveCfg = Release|Any CPU
 		{793F0FBF-858B-43D9-AD06-7DB8EAAEA200}.Release|x86.Build.0 = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|x64.Build.0 = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Debug|x86.Build.0 = Debug|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|x64.ActiveCfg = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|x64.Build.0 = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|x86.ActiveCfg = Release|Any CPU
+		{140DB30E-517A-45BB-812F-66DAFD61BE00}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,5 +79,6 @@ Global
 		{604A60DF-3686-4B83-B04C-DE293024CB9D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{6597C843-6B1D-4D40-8D38-54031099EEEF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{793F0FBF-858B-43D9-AD06-7DB8EAAEA200} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{140DB30E-517A-45BB-812F-66DAFD61BE00} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

@@ -28,8 +28,8 @@ public partial class App : Application
                 // Register TelegramApi layer
                 services.AddTelegramApi();
                 
-                // Register Core layer  
-                services.AddTelegramChannelDownloaderCore();
+                // Register Core layer with database configuration
+                services.AddTelegramChannelDownloaderCore(context.Configuration);
                 
                 // Register Desktop layer services
                 services.AddScoped<IUIService, UIService>();
@@ -48,6 +48,9 @@ public partial class App : Application
             {
                 // Clear default providers
                 logging.ClearProviders();
+                
+                // Set minimum log level to include Debug for development
+                logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
                 
                 // Add console logging for development
                 logging.AddConsole();
